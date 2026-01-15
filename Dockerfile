@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y \
     libpango1.0-dev \
     libx11-6 \
     pkg-config \
+    xvfb \
+    libegl1-mesa-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching

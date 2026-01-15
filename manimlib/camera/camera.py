@@ -71,7 +71,11 @@ class Camera(object):
 
     def init_context(self) -> None:
         if self.window is None:
-            self.ctx: moderngl.Context = moderngl.create_standalone_context()
+            try:
+                self.ctx: moderngl.Context = moderngl.create_standalone_context()
+            except Exception:
+                # Fallback to EGL for headless environments
+                self.ctx: moderngl.Context = moderngl.create_standalone_context(backend='egl')
         else:
             self.ctx: moderngl.Context = self.window.ctx
 
