@@ -181,6 +181,9 @@ def render_code(
         )
         
     except Exception as e:
+        return RenderResult(
+            video_path=None,
+            temp_dir=temp_dir,
             success=False,
             error=str(e)
         )
