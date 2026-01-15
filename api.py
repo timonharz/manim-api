@@ -202,6 +202,7 @@ class GenerateRequest(BaseModel):
     prompt: str = Field(..., description="Prompt describing the video content and narration.")
     quality: str = Field("medium", description="Video quality (low, medium, high, 4k)")
     format: str = Field("mp4", description="Output format (mp4, gif, mov)")
+    api_key: Optional[str] = Field(None, description="Groq API Key (overrides server-side key)")
 
 
 @app.post(
@@ -217,7 +218,8 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
         result = video_gen_service.generate_video(
             prompt=request.prompt, 
             quality=request.quality, 
-            format=request.format
+            format=request.format,
+            api_key=request.api_key
         )
         
         if not result.success:

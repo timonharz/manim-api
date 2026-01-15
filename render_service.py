@@ -198,7 +198,7 @@ class VideoGenerationService:
         self.llm = LLMService()
         self.tts = TTSService()
     
-    def generate_video(self, prompt: str, quality: str = "medium", format: str = "mp4") -> RenderResult:
+    def generate_video(self, prompt: str, quality: str = "medium", format: str = "mp4", api_key: str = None) -> RenderResult:
         """
         Orchestrates the generation flow:
         1. LLM generates code + script
@@ -208,7 +208,7 @@ class VideoGenerationService:
         temp_audio_path = None
         try:
             # 1. Generate Content
-            code, script = self.llm.generate_manim_content(prompt)
+            code, script = self.llm.generate_manim_content(prompt, api_key=api_key)
             
             # 2. Generate Audio
             # We create a temp file for the audio generation first

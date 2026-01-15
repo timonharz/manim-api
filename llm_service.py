@@ -7,19 +7,26 @@ load_dotenv()
 
 class LLMService:
     def __init__(self):
-        self.api_key = os.getenv("GROQ_API_KEY")
-        if not self.api_key:
-            # We don't raise error here to allow app startup, but generation will fail
-            print("Warning: GROQ_API_KEY not found in environment variables.")
-        self.client = Groq(api_key=self.api_key)
+        # We can keep an optional default client if needed, or just warn.
+        self.default_api_key = os.getenv("GROQ_API_KEY")
 
-    def generate_manim_content(self, prompt: str) -> Tuple[str, str]:
+    def generate_manim_content(self, prompt: str, api_key: str = None) -> Tuple[str, str]:
         """
         Generates Manim Python code and a narration script from a text prompt.
         
+        Args:
+            prompt: User prompt.
+            api_key: Groq API key provided by the user (override).
+            
         Returns:
             (code, narration script)
         """
+        key_to_use = api_key or self.default_api_key
+        if not key_to_use:
+            raise ValueError("Groq API key is required. Please provide it in the request or set GROQ_API_KEY env var.")
+            
+        client = Groq(api_key=key_to_use)
+
         system_prompt = """
         You are an expert Manim animation developer. Your goal is to generate Python code using `manimlib` (ManimGL version) to visualize the user's request, and a corresponding narration script.
 
@@ -41,7 +48,7 @@ class LLMService:
         - Define a single Scene class.
         """
 
-        completion = self.client.chat.completions.create(
+        completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
