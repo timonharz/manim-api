@@ -30,6 +30,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Install the application as a package (required for manimlib to find its version)
+RUN pip install .
+
 # Set environment variables for headless rendering
 # LIBGL_ALWAYS_SOFTWARE=1 forces software rendering if hardware is not available
 ENV LIBGL_ALWAYS_SOFTWARE=1
