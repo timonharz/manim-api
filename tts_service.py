@@ -1,5 +1,5 @@
 from pathlib import Path
-from gTTS import gTTS
+from gtts import gTTS
 
 class TTSService:
     @staticmethod
