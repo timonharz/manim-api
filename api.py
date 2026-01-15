@@ -190,11 +190,8 @@ async def root():
 
 
 # Service instantiation
-try:
-    from render_service import VideoGenerationService
-    video_gen_service = VideoGenerationService()
-except ImportError:
-    video_gen_service = None # or handle gracefully if deps missing locally
+from render_service import VideoGenerationService
+video_gen_service = VideoGenerationService()
 
 
 class GenerateRequest(BaseModel):

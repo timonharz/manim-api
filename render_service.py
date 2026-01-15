@@ -189,12 +189,9 @@ def render_code(
         )
 
 
-# Import services conditionally or strictly if deps match
-try:
-    from llm_service import LLMService
-    from tts_service import TTSService
-except ImportError:
-    pass
+# Service imports
+from llm_service import LLMService
+from tts_service import TTSService
 
 class VideoGenerationService:
     def __init__(self):
