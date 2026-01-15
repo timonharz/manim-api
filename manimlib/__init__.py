@@ -1,6 +1,9 @@
-import pkg_resources
+import importlib.metadata
 
-__version__ = pkg_resources.get_distribution("manimgl").version
+try:
+    __version__ = importlib.metadata.version("manimgl")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = ""
 
 from typing import TYPE_CHECKING
 
