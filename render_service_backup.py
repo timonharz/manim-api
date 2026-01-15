@@ -80,8 +80,7 @@ def render_code(
     code: str,
     scene_name: Optional[str] = None,
     quality: str = "medium",
-    format: str = "mp4",
-    assets: Optional[dict[str, bytes]] = None
+    format: str = "mp4"
 ) -> RenderResult:
     """
     Render Manim code and return the path to the output video.
@@ -91,7 +90,6 @@ def render_code(
         scene_name: Optional name of the specific scene to render
         quality: Video quality (low, medium, high, 4k)
         format: Output format (mp4, gif, mov)
-        assets: Optional dict of filename -> bytes to write to the temp dir (e.g. audio files)
     
     Returns:
         RenderResult containing the path to the video and cleanup method
@@ -101,12 +99,6 @@ def render_code(
     render_id = str(uuid.uuid4())[:8]
     
     try:
-        # Write assets if provided
-        if assets:
-            for filename, content in assets.items():
-                asset_path = temp_dir / filename
-                asset_path.write_bytes(content)
-
         # Write the code to a temporary file
         code_file = temp_dir / f"scene_{render_id}.py"
         code_file.write_text(code)
@@ -181,62 +173,9 @@ def render_code(
         )
         
     except Exception as e:
+        return RenderResult(
+            video_path=None,
+            temp_dir=temp_dir,
             success=False,
             error=str(e)
         )
-
-
-# Import services conditionally or strictly if deps match
-try:
-    from llm_service import LLMService
-    from tts_service import TTSService
-except ImportError:
-    pass
-
-class VideoGenerationService:
-    def __init__(self):
-        self.llm = LLMService()
-        self.tts = TTSService()
-    
-    def generate_video(self, prompt: str, quality: str = "medium", format: str = "mp4") -> RenderResult:
-        """
-        Orchestrates the generation flow:
-        1. LLM generates code + script
-        2. TTS generates audio (narration.mp3)
-        3. render_code handles the rendering (with the code referencing narration.mp3)
-        """
-        temp_audio_path = None
-        try:
-            # 1. Generate Content
-            code, script = self.llm.generate_manim_content(prompt)
-            
-            # 2. Generate Audio
-            # We create a temp file for the audio generation first
-            temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
-            os.close(temp_fd)
-            temp_audio_path = Path(temp_path_str)
-            
-            self.tts.generate_audio(script, temp_audio_path)
-            audio_bytes = temp_audio_path.read_bytes()
-            
-            # 3. Render Code with Audio Asset
-            # The LLM is instructed to use "narration.mp3"
-            assets = {"narration.mp3": audio_bytes}
-            
-            return render_code(
-                code=code,
-                quality=quality,
-                format=format,
-                assets=assets
-            )
-            
-        except Exception as e:
-            return RenderResult(Path(""), Path(""), False, f"Generation failed: {str(e)}")
-        finally:
-            # Cleanup local temp audio file
-            if temp_audio_path and temp_audio_path.exists():
-                try:
-                    os.unlink(temp_audio_path)
-                except:
-                    pass
-

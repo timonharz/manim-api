@@ -183,9 +183,72 @@ async def root():
         "docs": "/docs",
         "health": "/health",
         "endpoints": {
-            "POST /render": "Submit Manim code and receive rendered video"
+            "POST /render": "Submit Manim code and receive rendered video",
+            "POST /generate": "Generate video from prompt (LLM + TTS)"
         }
     }
+
+
+# Service instantiation
+try:
+    from render_service import VideoGenerationService
+    video_gen_service = VideoGenerationService()
+except ImportError:
+    video_gen_service = None # or handle gracefully if deps missing locally
+
+
+class GenerateRequest(BaseModel):
+    """Request body for generating a video from prompt."""
+    prompt: str = Field(..., description="Prompt describing the video content and narration.")
+    quality: str = Field("medium", description="Video quality (low, medium, high, 4k)")
+    format: str = Field("mp4", description="Output format (mp4, gif, mov)")
+
+
+@app.post(
+    "/generate",
+    response_class=FileResponse,
+    description="Generate a narrated video from a text prompt using Groq + gTTS."
+)
+async def generate_video_endpoint(request: GenerateRequest, background_tasks: BackgroundTasks):
+    if not video_gen_service:
+         raise HTTPException(status_code=500, detail="Generation service not available (missing dependencies?)")
+
+    try:
+        result = video_gen_service.generate_video(
+            prompt=request.prompt, 
+            quality=request.quality, 
+            format=request.format
+        )
+        
+        if not result.success:
+            result.cleanup()
+            raise HTTPException(status_code=400, detail=result.error)
+            
+        if not result.video_path or not result.video_path.exists():
+            result.cleanup()
+            raise HTTPException(status_code=500, detail="Video file was not generated")
+
+        # Store for cleanup
+        render_id = str(result.video_path.stem)
+        _active_renders[render_id] = result
+        
+        background_tasks.add_task(cleanup_render, render_id)
+        
+        # Determine media type (duplicated logic, could be helper)
+        media_types = {".mp4": "video/mp4", ".gif": "image/gif", ".mov": "video/quicktime"}
+        suffix = result.video_path.suffix.lower()
+        media_type = media_types.get(suffix, "application/octet-stream")
+        
+        return FileResponse(
+            path=str(result.video_path),
+            media_type=media_type,
+            filename=f"generated_video{suffix}"
+        )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 if __name__ == "__main__":

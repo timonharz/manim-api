@@ -3,7 +3,6 @@ appdirs
 audioop-lts; python_version>='3.13'
 colour
 diskcache
-gTTS
 ipython>=8.18.0
 isosurfaces
 fontTools
@@ -32,4 +31,6 @@ validators
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 python-multipart
-
+gTTS
+groq
+python-dotenv
