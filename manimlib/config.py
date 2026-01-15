@@ -224,7 +224,10 @@ def parse_cli():
             help="Automatically reload Python modules to pick up code changes " +
                  "across different files",
         )
-        args = parser.parse_args()
+        if os.path.basename(sys.argv[0]) in ["manimgl", "manim-render", "manimlib"]:
+            args = parser.parse_args()
+        else:
+            args = parser.parse_args([])
         args.write_file = any([args.write_file, args.open, args.finder])
         return args
     except argparse.ArgumentError as err:
