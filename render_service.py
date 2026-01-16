@@ -123,6 +123,18 @@ def render_code(
         code_file = temp_dir / f"scene_{render_id}.py"
         code_file.write_text(code)
         
+        # Validate the code before attempting to run it
+        try:
+            compile(code, code_file, 'exec')
+        except SyntaxError as e:
+            raise ValueError(f"Generated code has syntax errors: {e}")
+        
+        # Check for common hallucinations
+        if 'from manim import' in code or 'import manim' in code:
+            raise ValueError("Generated code uses 'manim' instead of 'manimlib'. Regeneration needed.")
+        if 'from manif' in code or 'import manif' in code:
+            raise ValueError("Generated code contains hallucinated module 'manif'. Regeneration needed.")
+        
         # Load the module dynamically
         spec = importlib.util.spec_from_file_location(f"scene_{render_id}", code_file)
         module = importlib.util.module_from_spec(spec)
