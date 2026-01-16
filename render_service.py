@@ -51,8 +51,7 @@ class RenderResult:
     def cleanup(self):
         """Clean up temporary files."""
         if self.temp_dir and self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-
+            shutil.rmtree(self.temp_dir, ignore_errors=True)# VERSION: 1.0.3 - Hardened Imports
 
 def render_code(
     code: str,
@@ -64,6 +63,9 @@ def render_code(
     """
     Render Manim code via a subprocess for memory isolation.
     """
+    import json
+    import subprocess
+    
     # Create temporary directory for this render
     temp_dir = Path(tempfile.mkdtemp(prefix="manim_render_"))
     render_id = str(uuid.uuid4())[:8]
