@@ -43,4 +43,4 @@ ENV MALLOC_ARENA_MAX=2
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "api.py"]
+CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
