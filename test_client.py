@@ -61,7 +61,7 @@ def test_generate(prompt, output_filename="test_generated.mp4", api_key=None):
 
 def send_request(url, payload, output_filename):
     try:
-        response = requests.post(url, json=payload, stream=True, timeout=120)
+        response = requests.post(url, json=payload, stream=True, timeout=300)
         
         if response.status_code == 200:
             print("Request successful! Downloading video...")

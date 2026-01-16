@@ -53,7 +53,7 @@ class LLMService:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b", # Or another available model on Groq
         )
 
         content = completion.choices[0].message.content
