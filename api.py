@@ -45,17 +45,32 @@ app = FastAPI(
 )
 
 
-# Global exception handler to prevent 502 errors
+# Exception handlers to prevent 502 errors and provide clean JSON responses
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import traceback
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and return a proper JSON response."""
     error_detail = str(exc)
-    tb = traceback.format_exc()
-    print(f"Unhandled exception: {error_detail}\n{tb}")
+    print(f"Unhandled exception: {error_detail}\n{traceback.format_exc()}")
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal server error: {error_detail}"}

@@ -244,10 +244,15 @@ class VideoGenerationService:
         for attempt in range(max_attempts):
             temp_audio_path = None
             try:
-                # 1. Generate Content (with retry hint on second attempt)
+                # 1. Generate Content (with retry hint on subsequent attempts)
                 effective_prompt = prompt
-                if attempt > 0:
-                    effective_prompt = f"{prompt}\n\nIMPORTANT: Use ONLY `from manimlib import *`. Do NOT use 'manim' or any other library. Keep it simple."
+                if attempt > 0 and last_error:
+                    effective_prompt = (
+                        f"{prompt}\n\n"
+                        f"CRITICAL: Your previous attempt failed with this error: '{last_error}'.\n"
+                        f"PLEASE FIX IT. Remember to use ONLY `from manimlib import *`. "
+                        f"Ensure all classes (Circle, Square, etc.) are available in manimlib."
+                    )
                 
                 code, script = self.llm.generate_manim_content(effective_prompt, api_key=api_key)
                 
@@ -277,6 +282,7 @@ class VideoGenerationService:
                     result.cleanup()
                     
             except Exception as e:
+                # Catch LLM or TTS errors and retry
                 last_error = str(e)
                 print(f"Attempt {attempt + 1} exception: {last_error}")
             finally:
