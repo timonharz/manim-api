@@ -69,9 +69,17 @@ class RenderRequest(BaseModel):
     quality: str = "medium"
     format: str = "mp4"
 
+@app.get("/")
+async def root():
+    return {"name": "Manim Video Streaming API", "version": "1.0.0"}
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "manim-api"}
+
+@app.post("/ping")
+async def ping():
+    return {"message": "pong"}
 
 @app.post("/render", response_class=FileResponse)
 async def render_animation(request: RenderRequest, background_tasks: BackgroundTasks):
