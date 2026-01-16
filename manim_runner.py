@@ -13,8 +13,8 @@ if str(current_dir) not in sys.path:
 from manimlib.scene.scene import Scene
 
 
-def find_scene_class(module, scene_name=None):
-    """Find the scene class to render from the module."""
+def find_scene_classes(module, scene_name=None):
+    """Find the scene classes to render from the module."""
     import inspect
     
     scene_classes = []
@@ -28,13 +28,15 @@ def find_scene_class(module, scene_name=None):
     if not scene_classes:
         raise ValueError("No Scene classes found in the provided code")
     
+    # If specific scene requested, return just that one
     if scene_name:
         for name, cls in scene_classes:
             if name == scene_name:
-                return cls
+                return [(name, cls)]
         raise ValueError(f"Scene '{scene_name}' not found. Available scenes: {[n for n, _ in scene_classes]}")
     
-    return scene_classes[-1][1]
+    # Otherwise return all scenes found
+    return scene_classes
 
 
 def main():
@@ -50,7 +52,7 @@ def main():
         code_path = Path(config['code_path'])
         scene_name = config.get('scene_name')
         camera_config = config.get('camera_config', {})
-        file_writer_config = config.get('file_writer_config', {})
+        base_file_writer_config = config.get('file_writer_config', {})
 
         # Load the module dynamically
         spec = importlib.util.spec_from_file_location("user_scene", code_path)
@@ -58,20 +60,32 @@ def main():
         sys.modules["user_scene"] = module
         spec.loader.exec_module(module)
 
-        # Find the scene class
-        SceneClass = find_scene_class(module, scene_name)
+        # Find the scene classes
+        scene_classes = find_scene_classes(module, scene_name)
+        print(f"Found scenes: {[name for name, _ in scene_classes]}")
 
-        # Run the scene
-        scene = SceneClass(
-            window=None,
-            camera_config=camera_config,
-            file_writer_config=file_writer_config,
-            skip_animations=False,
-            always_update_mobjects=False,
-            show_animation_progress=False,
-            leave_progress_bars=False,
-        )
-        scene.run()
+        # Run each scene
+        for i, (name, SceneClass) in enumerate(scene_classes):
+            print(f"Rendering scene: {name} ({i+1}/{len(scene_classes)})...")
+            
+            # Create a unique config for this scene
+            file_writer_config = base_file_writer_config.copy()
+            original_filename = file_writer_config.get("file_name", "output")
+            
+            # Append index/name to ensure unique output files if multiple scenes
+            if len(scene_classes) > 1:
+                file_writer_config["file_name"] = f"{original_filename}_{i:02d}"
+            
+            scene = SceneClass(
+                window=None,
+                camera_config=camera_config,
+                file_writer_config=file_writer_config,
+                skip_animations=False,
+                always_update_mobjects=False,
+                show_animation_progress=False,
+                leave_progress_bars=False,
+            )
+            scene.run()
         
         # Cleanup
         if "user_scene" in sys.modules:

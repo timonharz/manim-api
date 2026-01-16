@@ -1,9 +1,11 @@
 import importlib.metadata
 import pyglet
 
+import sys
 # Prevent pyglet from trying to connect to X server on headless displays
 pyglet.options['shadow_window'] = False
-pyglet.options['headless'] = True
+if sys.platform != "darwin":
+    pyglet.options['headless'] = True
 
 try:
     __version__ = importlib.metadata.version("manimgl")

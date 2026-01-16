@@ -80,6 +80,9 @@ def render_code(
         code_file = temp_dir / f"scene_{render_id}.py"
         code_file.write_text(code)
         
+        # DEBUG: Print code to stdout
+        print(f"--- GENERATED CODE ---\n{code}\n------------------------")
+        
         # Validate the code
         try:
             compile(code, str(code_file), 'exec')
@@ -126,9 +129,15 @@ def render_code(
             json.dump(runner_config, f)
             
         # Run in subprocess with virtual display context
+        # Run in subprocess with virtual display context
         runner_script = Path(__file__).parent / "manim_runner.py"
+        
+        cmd = [sys.executable, str(runner_script), str(config_path)]
+        if sys.platform != "darwin":
+             cmd = ["xvfb-run", "-s", "-screen 0 1280x720x24"] + cmd
+
         process = subprocess.run(
-            ["xvfb-run", "-s", "-screen 0 1280x720x24", sys.executable, str(runner_script), str(config_path)],
+            cmd,
             cwd=temp_dir,
             capture_output=True,
             text=True
@@ -138,14 +147,42 @@ def render_code(
             raise RuntimeError(f"Rendering Process Error (Exit {process.returncode}):\n{process.stderr}\n{process.stdout}")
         
         # Find video path
-        video_path = output_dir / f"output_{render_id}{file_ext}"
-        if not video_path.exists():
-            # Fallback search
-            found = list(output_dir.glob(f"*{file_ext}"))
-            if found:
-                video_path = found[0]
-            else:
-                raise FileNotFoundError(f"Video file missing in {output_dir}. Output:\n{process.stdout}\n{process.stderr}")
+        # Find video path(s)
+        # We look for files starting with the expected name
+        found_files = sorted(list(output_dir.glob(f"output_{render_id}*{file_ext}")))
+        
+        if not found_files:
+             raise FileNotFoundError(f"Video file missing in {output_dir}. Output:\n{process.stdout}\n{process.stderr}")
+
+        if len(found_files) == 1:
+            video_path = found_files[0]
+        else:
+            # Stitch multiple files together
+            concat_list_path = output_dir / "concat_list.txt"
+            with open(concat_list_path, "w") as f:
+                for path in found_files:
+                    f.write(f"file '{path.name}'\n")
+            
+            merged_path = output_dir / f"output_merged_{render_id}{file_ext}"
+            
+            # Run ffmpeg to concatenate
+            # ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp4
+            concat_cmd = [
+                "ffmpeg", "-f", "concat", "-safe", "0",
+                "-i", str(concat_list_path),
+                "-c", "copy",
+                "-y",  # overwrite
+                str(merged_path)
+            ]
+            
+            subprocess.run(
+                concat_cmd, 
+                stdout=subprocess.DEVNULL, 
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+            
+            video_path = merged_path
         
         return RenderResult(video_path, temp_dir, True)
         

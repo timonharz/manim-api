@@ -64,7 +64,7 @@ Match animation timing to the narration script using self.wait() calls.)
 ## CRITICAL RULES (VIOLATION = SYSTEM CRASH):
 1. Use ONLY `from manimlib import *` as the FIRST import line.
 2. NEVER use `import manim`, `from manim import ...`, `import manif`, or `from manif import ...`.
-3. Define ONE main Scene class that will be rendered. It MUST be the LAST class in the file.
+3. You may define multiple Scene classes. They will be rendered sequentially and stitched together. This is useful for breaking down complex topics.
 4. Include `self.add_sound("narration.mp3")` at the START of the `construct` method.
 5. Use standard color constants (RED, BLUE, GREEN, YELLOW, WHITE, etc.) or HEX codes like "#FF5733".
 6. Use `Write()` for Tex/Text objects, `ShowCreation()` for shapes/lines.
@@ -100,7 +100,6 @@ Match animation timing to the narration script using self.wait() calls.)
                 {"role": "user", "content": prompt}
             ],
             model="openai/gpt-oss-120b",
-            reasoning_effort="high",
             temperature=0.7,
             max_completion_tokens=8192
         )
@@ -109,6 +108,10 @@ Match animation timing to the narration script using self.wait() calls.)
 
         # Robust regex-based parsing
         import re
+        # Pre-clean tags to handle bolding or other artifacts
+        content = content.replace("**[SCRIPT]**", "[SCRIPT]").replace("**[/SCRIPT]**", "[/SCRIPT]")
+        content = content.replace("**[CODE]**", "[CODE]").replace("**[/CODE]**", "[/CODE]")
+        
         script_match = re.search(r"\[SCRIPT\](.*?)\[/SCRIPT\]", content, re.DOTALL | re.IGNORECASE)
         code_match = re.search(r"\[CODE\](.*?)\[/CODE\]", content, re.DOTALL | re.IGNORECASE)
 
