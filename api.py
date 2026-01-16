@@ -71,7 +71,7 @@ class RenderRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"name": "Manim Video Streaming API", "version": "1.0.0"}
+    return {"name": "Manim Video Streaming API", "version": "1.1.7"}
 
 @app.get("/health")
 async def health_check():
