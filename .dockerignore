@@ -1,0 +1,47 @@
+# Git
+.git
+.github
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+dist
+build
+*.egg
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Test output files
+*.mp4
+*.webm
+*.png
+*.gif
+output/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Swift client (not needed for server)
+swift-client/
+
+# Environment files
+.env
+.Env
+*.local
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
