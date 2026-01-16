@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglu1-mesa \
     texlive-latex-base \
     texlive-latex-recommended \
+    texlive-latex-extra \
     dvipng \
     dvisvgm \
     xauth \
