@@ -39,11 +39,9 @@ RUN pip install .
 # LIBGL_ALWAYS_SOFTWARE=1 forces software rendering if hardware is not available
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV PYTHONUNBUFFERED=1
-# Limit memory fragmentation to help stay within 512MB
-ENV MALLOC_ARENA_MAX=2
 
 # Expose port
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--limit-concurrency", "10"]
+CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120", "api:app"]
