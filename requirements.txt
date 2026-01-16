@@ -34,3 +34,5 @@ python-multipart
 gTTS
 groq
 python-dotenv
+gunicorn
+pyglet

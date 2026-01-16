@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     xvfb \
     libegl1-mesa-dev \
+    libglib2.0-0 \
+    libglu1-mesa \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
@@ -44,4 +46,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Command to run the application
-CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120", "api:app"]
+CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120", "api:app"]
