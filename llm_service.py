@@ -108,9 +108,15 @@ Match animation timing to the narration script using self.wait() calls.)
 
         # Robust regex-based parsing
         import re
-        # Pre-clean tags to handle bolding or other artifacts
+        # Pre-clean tags to handle various markdown formatting artifacts
+        # Remove bold/italic markers around tags
         content = content.replace("**[SCRIPT]**", "[SCRIPT]").replace("**[/SCRIPT]**", "[/SCRIPT]")
         content = content.replace("**[CODE]**", "[CODE]").replace("**[/CODE]**", "[/CODE]")
+        content = content.replace("*[SCRIPT]*", "[SCRIPT]").replace("*[/SCRIPT]*", "[/SCRIPT]")
+        content = content.replace("*[CODE]*", "[CODE]").replace("*[/CODE]*", "[/CODE]")
+        # Remove any backticks around tags
+        content = content.replace("`[SCRIPT]`", "[SCRIPT]").replace("`[/SCRIPT]`", "[/SCRIPT]")
+        content = content.replace("`[CODE]`", "[CODE]").replace("`[/CODE]`", "[/CODE]")
         
         script_match = re.search(r"\[SCRIPT\](.*?)\[/SCRIPT\]", content, re.DOTALL | re.IGNORECASE)
         code_match = re.search(r"\[CODE\](.*?)\[/CODE\]", content, re.DOTALL | re.IGNORECASE)
