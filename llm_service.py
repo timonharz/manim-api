@@ -108,18 +108,18 @@ Match animation timing to the narration script using self.wait() calls.)
 
         # Robust regex-based parsing
         import re
-        # Pre-clean tags to handle various markdown formatting artifacts
-        # Remove bold/italic markers around tags
-        content = content.replace("**[SCRIPT]**", "[SCRIPT]").replace("**[/SCRIPT]**", "[/SCRIPT]")
-        content = content.replace("**[CODE]**", "[CODE]").replace("**[/CODE]**", "[/CODE]")
-        content = content.replace("*[SCRIPT]*", "[SCRIPT]").replace("*[/SCRIPT]*", "[/SCRIPT]")
-        content = content.replace("*[CODE]*", "[CODE]").replace("*[/CODE]*", "[/CODE]")
-        # Remove any backticks around tags
-        content = content.replace("`[SCRIPT]`", "[SCRIPT]").replace("`[/SCRIPT]`", "[/SCRIPT]")
-        content = content.replace("`[CODE]`", "[CODE]").replace("`[/CODE]`", "[/CODE]")
         
-        script_match = re.search(r"\[SCRIPT\](.*?)\[/SCRIPT\]", content, re.DOTALL | re.IGNORECASE)
-        code_match = re.search(r"\[CODE\](.*?)\[/CODE\]", content, re.DOTALL | re.IGNORECASE)
+        # Step 1: Strip common markdown formatting around tags
+        # Handle bold/italic markers
+        for marker in ['**', '*', '`']:
+            content = content.replace(f"{marker}[SCRIPT]{marker}", "[SCRIPT]")
+            content = content.replace(f"{marker}[/SCRIPT]{marker}", "[/SCRIPT]")
+            content = content.replace(f"{marker}[CODE]{marker}", "[CODE]")
+            content = content.replace(f"{marker}[/CODE]{marker}", "[/CODE]")
+        
+        # Step 2: More flexible regex that allows whitespace around tags
+        script_match = re.search(r"\[\s*SCRIPT\s*\](.*?)\[\s*/SCRIPT\s*\]", content, re.DOTALL | re.IGNORECASE)
+        code_match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", content, re.DOTALL | re.IGNORECASE)
 
         if not script_match or not code_match:
             # Fallback: check for markdown code blocks if [CODE] is missing
@@ -127,7 +127,14 @@ Match animation timing to the narration script using self.wait() calls.)
                 code_match = re.search(r"```python(.*?)```", content, re.DOTALL)
             
             if not script_match or not code_match:
-                raise ValueError(f"Failed to find [SCRIPT] or [CODE] tags in LLM response.\n\nRaw response snippet:\n{content[:500]}...")
+                # Debug: Show what we found
+                has_script_open = "[SCRIPT]" in content.upper() or "[ SCRIPT ]" in content.upper()
+                has_script_close = "[/SCRIPT]" in content.upper() or "[ /SCRIPT ]" in content.upper()
+                has_code_open = "[CODE]" in content.upper() or "[ CODE ]" in content.upper()
+                has_code_close = "[/CODE]" in content.upper() or "[ /CODE ]" in content.upper()
+                
+                debug_info = f"Tags found: SCRIPT open={has_script_open}, close={has_script_close}, CODE open={has_code_open}, close={has_code_close}"
+                raise ValueError(f"Failed to parse LLM response. {debug_info}\n\nRaw response (first 1000 chars):\n{content[:1000]}...")
 
         script = script_match.group(1).strip()
         code = code_match.group(1).strip()
