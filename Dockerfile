@@ -3,7 +3,7 @@
 # Multi-stage build with minimal TeX Live
 
 # Stage 1: Build stage
-FROM python:3.10-slim AS builder
+FROM python:3.10-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Stage 2: Runtime stage (minimal)
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 WORKDIR /app
 
