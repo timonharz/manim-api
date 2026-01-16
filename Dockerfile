@@ -37,16 +37,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libegl1-mesa \
     libglib2.0-0 \
     libglu1-mesa \
-    # Minimal TeX installation (much smaller than full texlive)
     texlive-latex-base \
     texlive-latex-recommended \
     dvipng \
-    cm-super \
     dvisvgm \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clean up to reduce image size
+RUN apt-get clean || true \
     && rm -rf /tmp/* /var/tmp/* \
-    # Clean up TeX Live documentation and source files (~500MB savings)
     && rm -rf /usr/share/doc/* \
     && rm -rf /usr/share/man/* \
     && rm -rf /usr/share/texlive/texmf-dist/doc \
