@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from嵌入式: fastapi
+import fastapi
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
