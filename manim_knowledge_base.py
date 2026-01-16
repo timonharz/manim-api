@@ -629,6 +629,56 @@ self.play(animation, rate_func=lingering)  # Slow at end
 ```
 """,
 
+    "updaters": """
+## Updaters and Dynamic Motion (from manimlib.mobject.mobject)
+
+### Basic Updaters
+```python
+# Function to update mobject every frame
+def update_func(mobject, dt):
+    mobject.rotate(dt * PI)
+    mobject.shift(RIGHT * dt)
+
+mobject.add_updater(update_func)
+self.add(mobject)
+self.wait(2)  # Mobject will move continuously during wait
+mobject.remove_updater(update_func)
+```
+
+### always_redraw equivalent (manimlib doesn't have it, use updaters)
+```python
+# To keep a line attached to a moving dot
+dot = Dot(RIGHT)
+line = Line(ORIGIN, dot.get_center())
+line.add_updater(lambda l: l.put_start_and_end_on(ORIGIN, dot.get_center()))
+self.add(dot, line)
+self.play(dot.animate.shift(UP))
+```
+
+### f_always (Shorthand for calling a method every frame)
+```python
+# Keep label next to dot automatically
+f_always(label.next_to, dot, RIGHT)
+# Equivalent to: label.add_updater(lambda l: l.next_to(dot, RIGHT))
+
+# Keep mobject at a specific coordinate
+f_always(mobject.move_to, lambda: [np.sin(self.time), 0, 0])
+```
+
+### always (Fixed argument shorthand)
+```python
+always(mobject.set_color, RED) # Always stay RED
+```
+
+### ValueTracker
+```python
+tracker = ValueTracker(0)
+# Use with updaters to drive animations
+mobject.add_updater(lambda m: m.set_x(tracker.get_value()))
+self.play(tracker.animate.set_value(5), run_time=2)
+```
+""",
+
     "multi_scene_pattern": """
 ## Multi-Scene Animation Patterns
 
@@ -770,6 +820,13 @@ KEYWORD_MAPPINGS: Dict[str, List[str]] = {
     "arrange": ["vgroup"],
     "easing": ["rate_functions"],
     "smooth": ["rate_functions"],
+    "updater": ["updaters"],
+    "dynamic": ["updaters"],
+    "tracker": ["updaters"],
+    "value tracker": ["updaters"],
+    "follow": ["updaters"],
+    "attached": ["updaters"],
+    "real-time": ["updaters"],
     
     # Complex topics  
     "explain": ["multi_scene_pattern", "text_latex"],

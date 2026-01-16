@@ -1,4 +1,4 @@
-# Build Version: 1.1.8
+# Build Version: 1.1.11
 # Use python 3.10 slim image
 FROM python:3.10-slim
 

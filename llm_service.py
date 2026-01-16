@@ -84,6 +84,14 @@ Match animation timing to the narration script using self.wait() calls.)
 - Build complexity gradually - introduce elements one at a time
 - Use FadeIn/FadeOut for smooth scene transitions
 - In 3D scenes, use `.fix_in_frame()` for titles/labels that shouldn't rotate with camera
+
+## COMMON MISTAKES TO AVOID (VERY IMPORTANT):
+- NEVER use `always_redraw(...)`. It DOES NOT EXIST in manimlib. Instead, use `mobject.add_updater(lambda m: m.become(...))` or `f_always(m.move_to, dot)`.
+- NEVER use `ValueTracker().animate.set_value(...)`. Instead, use `tracker.animate.set_value(...)` (without the .animate if manimlib version is older, but usually tracker.animate works in manimgl).
+- NEVER use `self.set_camera_orientation()`. Instead use `self.frame.set_euler_angles()`.
+- Use `ShowCreation` for shapes, not `Create`.
+- Use `Write` for Tex, not `AddTextWordByWord` (unless specifically asked for typing effect).
+- Use `MathTex` or `Tex` for all mathematical formulas.
 """
 
         completion = client.chat.completions.create(
@@ -99,21 +107,34 @@ Match animation timing to the narration script using self.wait() calls.)
 
         content = completion.choices[0].message.content
 
-        try:
-            script = content.split("[SCRIPT]")[1].split("[/SCRIPT]")[0].strip()
-            code = content.split("[CODE]")[1].split("[/CODE]")[0].strip()
+        # Robust regex-based parsing
+        import re
+        script_match = re.search(r"\[SCRIPT\](.*?)\[/SCRIPT\]", content, re.DOTALL | re.IGNORECASE)
+        code_match = re.search(r"\[CODE\](.*?)\[/CODE\]", content, re.DOTALL | re.IGNORECASE)
+
+        if not script_match or not code_match:
+            # Fallback: check for markdown code blocks if [CODE] is missing
+            if not code_match:
+                code_match = re.search(r"```python(.*?)```", content, re.DOTALL)
             
-            # Clean up code block markers if present
-            if code.startswith("```"):
-                lines = code.split("\n")
-                # Remove first line (```python) and last line (```)
-                code = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            if not script_match or not code_match:
+                raise ValueError(f"Failed to find [SCRIPT] or [CODE] tags in LLM response.\n\nRaw response snippet:\n{content[:500]}...")
+
+        script = script_match.group(1).strip()
+        code = code_match.group(1).strip()
+
+        # Clean up code block markers if accidentally included inside [CODE]
+        if code.startswith("```"):
+            lines = code.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            code = "\n".join(lines).strip()
+        
+        # Validate the code has required import
+        if "from manimlib import" not in code:
+            code = "from manimlib import *\n\n" + code
             
-            # Validate the code has required import
-            if "from manimlib import" not in code:
-                code = "from manimlib import *\n\n" + code
-                
-            return code.strip(), script
-        except Exception as e:
-            raise ValueError(f"Failed to parse LLM response: {str(e)}\n\nRaw response:\n{content[:500]}")
+        return code.strip(), script
 
