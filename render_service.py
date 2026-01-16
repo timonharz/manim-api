@@ -10,6 +10,7 @@ import os
 import sys
 import importlib.util
 import shutil
+import contextlib
 from pathlib import Path
 from typing import Optional
 from addict import Dict
@@ -20,6 +21,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 from manimlib.scene.scene import Scene
 from manimlib.config import manim_config, load_yaml, get_manim_dir
 from manimlib.utils.dict_ops import merge_dicts_recursively
+
+
+@contextlib.contextmanager
+def working_directory(path):
+    """Changes working directory and returns to previous on exit."""
+    prev_cwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(prev_cwd)
 
 
 QUALITY_MAP = {
@@ -150,18 +162,19 @@ def render_code(
             pixel_format="yuv420p" if format == "mp4" else "",
         )
         
-        # Create and run the scene
-        scene = scene_class(
-            window=None,  # No window for headless rendering
-            camera_config=camera_config,
-            file_writer_config=file_writer_config,
-            skip_animations=False,
-            always_update_mobjects=False,
-            show_animation_progress=False,
-            leave_progress_bars=False,
-        )
-        
-        scene.run()
+        # Create and run the scene in the temp directory so assets can be found
+        with working_directory(temp_dir):
+            scene = scene_class(
+                window=None,  # No window for headless rendering
+                camera_config=camera_config,
+                file_writer_config=file_writer_config,
+                skip_animations=False,
+                always_update_mobjects=False,
+                show_animation_progress=False,
+                leave_progress_bars=False,
+            )
+            
+            scene.run()
         
         # Find the output video
         video_path = output_dir / f"output_{render_id}{file_extension}"
