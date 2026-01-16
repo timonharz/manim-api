@@ -36,3 +36,4 @@ groq
 python-dotenv
 gunicorn
 pyglet
+langdetect
