@@ -164,6 +164,10 @@ def render_code(
         
         # Create and run the scene in the temp directory so assets can be found
         with working_directory(temp_dir):
+            # Diagnostic logging
+            print(f"DEBUG: CWD set to {os.getcwd()}")
+            print(f"DEBUG: Files in CWD: {os.listdir('.')}")
+            
             scene = scene_class(
                 window=None,  # No window for headless rendering
                 camera_config=camera_config,
@@ -185,7 +189,8 @@ def render_code(
             if video_files:
                 video_path = video_files[0]
             else:
-                raise FileNotFoundError(f"No video file generated in {output_dir}")
+                files_listing = os.listdir(output_dir) if output_dir.exists() else "DIR_MISSING"
+                raise FileNotFoundError(f"No video file generated in {output_dir}. Files: {files_listing}")
         
         return RenderResult(
             video_path=video_path,
@@ -244,7 +249,8 @@ class VideoGenerationService:
             )
             
         except Exception as e:
-            return RenderResult(Path(""), Path(""), False, f"Generation failed: {str(e)}")
+            debug_info = f"CWD: {os.getcwd()}, Files: {os.listdir('.')[:10]}"
+            return RenderResult(Path(""), Path(""), False, f"Generation failed: {str(e)} ({debug_info})")
         finally:
             # Cleanup local temp audio file
             if temp_audio_path and temp_audio_path.exists():
