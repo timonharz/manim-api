@@ -125,10 +125,10 @@ def render_code(
         with open(config_path, 'w') as f:
             json.dump(runner_config, f)
             
-        # Run in subprocess
+        # Run in subprocess with virtual display context
         runner_script = Path(__file__).parent / "manim_runner.py"
         process = subprocess.run(
-            [sys.executable, str(runner_script), str(config_path)],
+            ["xvfb-run", "-s", "-screen 0 1280x720x24", sys.executable, str(runner_script), str(config_path)],
             cwd=temp_dir,
             capture_output=True,
             text=True

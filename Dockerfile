@@ -1,4 +1,4 @@
-# Build Version: 1.0.7
+# Build Version: 1.0.8
 # Use python 3.10 slim image
 FROM python:3.10-slim
 
@@ -44,5 +44,5 @@ ENV MALLOC_ARENA_MAX=2
 # Expose port
 EXPOSE 8000
 
-# Command to run the application with virtual display context
-CMD ["xvfb-run", "-s", "-screen 0 1280x720x24", "python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
+# Command to run the application
+CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
