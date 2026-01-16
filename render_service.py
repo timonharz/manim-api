@@ -22,7 +22,7 @@ current_dir = Path(__file__).parent.absolute()
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from manimlib.config import manim_config
+
 
 
 QUALITY_MAP = {
@@ -104,9 +104,9 @@ def render_code(
             "scene_name": scene_name,
             "camera_config": {
                 "resolution": resolution,
-                "fps": getattr(manim_config.camera, 'fps', 30),
-                "background_color": str(getattr(manim_config.camera, 'background_color', 'BLACK')),
-                "background_opacity": getattr(manim_config.camera, 'background_opacity', 1.0),
+                "fps": 30,  # Default to 30 to avoid top-level manim_config
+                "background_color": "BLACK",
+                "background_opacity": 1.0,
             },
             "file_writer_config": {
                 "write_to_movie": True,

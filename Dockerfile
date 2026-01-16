@@ -1,4 +1,4 @@
-# Build Version: 1.0.8
+# Build Version: 1.0.9
 # Use python 3.10 slim image
 FROM python:3.10-slim
 
@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libegl1-mesa-dev \
     libglib2.0-0 \
     libglu1-mesa \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
