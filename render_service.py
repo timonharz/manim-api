@@ -11,6 +11,54 @@ import sys
 import importlib.util
 import shutil
 import contextlib
+from pathlib import Path
+from typing import Optional
+from addict import Dict
+
+# Ensure manimlib is importable
+sys.path.insert(0, str(Path(__file__).parent))
+
+from manimlib.config import manim_config
+
+@contextlib.contextmanager
+def working_directory(path):
+    """Changes working directory and returns to previous on exit."""
+    prev_cwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(prev_cwd)
+
+
+QUALITY_MAP = {
+    "low": (854, 480),
+    "medium": (1280, 720),
+    "high": (1920, 1080),
+    "4k": (3840, 2160),
+}
+
+FORMAT_MAP = {
+    "mp4": ".mp4",
+    "gif": ".gif",
+    "mov": ".mov",
+}
+
+
+class RenderResult:
+    """Result of a render operation."""
+    
+    def __init__(self, video_path: Path, temp_dir: Path, success: bool, error: Optional[str] = None):
+        self.video_path = video_path
+        self.temp_dir = temp_dir
+        self.success = success
+        self.error = error
+    
+    def cleanup(self):
+        """Clean up temporary files."""
+        if self.temp_dir and self.temp_dir.exists():
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
 
 
 
