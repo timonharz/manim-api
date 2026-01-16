@@ -150,11 +150,17 @@ async def render_animation(request: RenderRequest, background_tasks: BackgroundT
     media_type = media_types.get(suffix, "application/octet-stream")
     
     # Return the video file
-    return FileResponse(
+    response = FileResponse(
         path=str(result.video_path),
         media_type=media_type,
         filename=f"animation{suffix}"
     )
+    
+    # Explicitly clear memory after render
+    import gc
+    gc.collect()
+    
+    return response
 
 
 # Service instantiation
@@ -205,11 +211,17 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
     suffix = result.video_path.suffix.lower()
     media_type = media_types.get(suffix, "application/octet-stream")
     
-    return FileResponse(
+    response = FileResponse(
         path=str(result.video_path),
         media_type=media_type,
         filename=f"generated_video{suffix}"
     )
+    
+    # Explicitly clear memory after generation
+    import gc
+    gc.collect()
+    
+    return response
 
 
 if __name__ == "__main__":
