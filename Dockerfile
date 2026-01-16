@@ -1,4 +1,4 @@
-# Build Version: 1.1.2
+# Build Version: 1.1.4
 # Use python 3.10 slim image
 FROM python:3.10-slim
 
@@ -31,19 +31,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Install the application as a package (required for manimlib to find its version)
+# Install the application as a package
 RUN pip install .
 
 # Set environment variables for headless rendering
-# LIBGL_ALWAYS_SOFTWARE=1 forces software rendering if hardware is not available
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV PYTHONUNBUFFERED=1
-
-# Optimization for memory-constrained environments (512MB)
 ENV MALLOC_ARENA_MAX=2
 
 # Expose port
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
+CMD ["python", "api.py"]
