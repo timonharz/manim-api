@@ -42,8 +42,13 @@ RUN pip install .
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV PYTHONUNBUFFERED=1
 
+# Optimization for memory-constrained environments (512MB)
+ENV MALLOC_ARENA_MAX=2
+
 # Expose port
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120", "api:app"]
+# -w 1: Single worker to respect 512MB limit
+# --max-requests/jitter: Restart worker periodically to clear any memory leaks
+CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "120", "api:app"]
