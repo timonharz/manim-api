@@ -1,45 +1,45 @@
-# Manim API Capability Report
+# Manim API Capability Report (Updated)
 
 ## Test Execution Summary
 
 - **Total Tests**: 5
 - **Passed**: 2
 - **Failed**: 3
-- **Overall Result**: ❌ FAIL (Stability issues identified)
+- **Overall Result**: ❌ FAIL (Improvements made, but issues remain)
+
+## Changes Implemented
+
+| Fix                                                     | Status         |
+| :------------------------------------------------------ | :------------- |
+| Global exception handler in `api.py`                    | ✅ Implemented |
+| Retry logic (2 attempts) in `render_service.py`         | ✅ Implemented |
+| RAG knowledge base for Manim syntax in `llm_service.py` | ✅ Implemented |
+| Code validation (syntax + hallucination checks)         | ✅ Implemented |
 
 ## Capability Breakdown
 
-| Capability                      | Status    | Details                                                          |
-| :------------------------------ | :-------- | :--------------------------------------------------------------- |
-| **Server Health**               | ✅ PASSED | Root endpoint responsive, returns expected metadata.             |
-| **Manim Rendering**             | ✅ PASSED | Manual code rendering via `/render` works and returns valid MP4. |
-| **AI Generation**               | ❌ FAILED | Endpoint `/generate` often returns `502 Bad Gateway`.            |
-| **Error Handling (API Key)**    | ❌ FAILED | Returns `502` instead of `400` on invalid keys.                  |
-| **Error Handling (Validation)** | ❌ FAILED | Returns `502` instead of `422` on missing fields.                |
+| Capability           | Status    | Details                                |
+| :------------------- | :-------- | :------------------------------------- |
+| **Server Health**    | ✅ PASSED | Root endpoint responsive.              |
+| **Manim Rendering**  | ✅ PASSED | `/render` works and returns valid MP4. |
+| **AI Generation**    | ❌ FAILED | Timeout on Render (279s test run).     |
+| **Invalid API Key**  | ❌ FAILED | 502 instead of 400.                    |
+| **Validation Error** | ❌ FAILED | 502 instead of 422.                    |
 
-## Detailed Issue Analysis
+## Root Cause Analysis
 
-### 1. 502 Bad Gateway Errors
+The 502 errors on tests 4 and 5 are caused by the Render free tier's gateway timeout being reached before the application can respond. The AI generation process (LLM call + TTS + Manim render) takes too long.
 
-The most critical issue is that Render returns a `502 Bad Gateway` for several scenarios.
+The test suite itself ran for **279 seconds**, which exceeds most gateway timeouts.
 
-- **Cause**: This usually indicates that the FastAPI application process crashed or failed to send a response within Render's gateway timeout (typically 60-120 seconds).
-- **Observation**: During AI generation, the process involves LLM calls, TTS generation, and Manim rendering. The combination can be heavy. Even simple validation failures (like a missing field) are triggering 502s, suggesting that certain exceptions are causing the Uvicorn process to crash or hang.
+## Recommendations to Fully Fix
 
-### 2. LLM Hallucinations
+1. **Async Background Jobs**: The `/generate` endpoint should accept the request, immediately return a `task_id`, and process in the background. The client can then poll `/status/{task_id}` for completion.
+2. **Upgrade Render Tier**: The free tier may have strict resource limits. A paid tier would provide more memory and longer timeouts.
+3. **Optimize LLM Model**: Use a faster, simpler model for code generation, or cache common prompts.
 
-Previous logs showed the LLM trying to import `manif` instead of `manimlib`.
+## Files Modified
 
-- **Status**: Partially mitigated by a stricter system prompt and a code validation step.
-- **Residual Risk**: LLMs remain non-deterministic. Without a retry loop in the orchestration service, a single bad generation will cause a request to fail.
-
-### 3. Asset Resolution
-
-- **Status**: ✅ RESOLVED. The `working_directory` context manager successfully allowed Manim to find `narration.mp3` in the temporary directory.
-
-## Recommendations for Improvement
-
-1. **Async Orchestration**: Move the generation/rendering process to Background Tasks. Return a `task_id` immediately to the client to avoid gateway timeouts (502/504).
-2. **Exception Shielding**: Wrap the `/generate` endpoint in a broad `try-except` block that explicitly returns a `JSONResponse` even for unexpected errors, preventing the gateway from seeing a process crash.
-3. **Retry Logic**: Implement a "2-try" limit for LLM generation. If the first code block fails validation (e.g., syntax error or bad imports), the server should automatically ask the LLM to fix it before giving up.
-4. **Local Resource Check**: Monitor RAM usage on Render. Manim rendering can be memory-intensive and might be hitting the free tier limits, causing a SIGKILL (another source of 502s).
+- [api.py](file:///Users/timon/Downloads/manim-api-master/api.py): Global exception handler
+- [render_service.py](file:///Users/timon/Downloads/manim-api-master/render_service.py): Retry logic, code validation
+- [llm_service.py](file:///Users/timon/Downloads/manim-api-master/llm_service.py): RAG knowledge base
