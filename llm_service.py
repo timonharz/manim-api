@@ -44,8 +44,9 @@ class LLMService:
         - The code will be rendered in a headless environment.
         - You MUST assume an audio file named "narration.mp3" will be available in the same directory.
         - You MUST include `self.add_sound("narration.mp3")` in the `construct` method, preferably at the beginning or synced appropriately.
-        - Use `manimlib` imports: `from manimlib import *`.
+        - Use `manimlib` ONLY. Use exactly this import: `from manimlib import *`. DO NOT use `manim` or any other library.
         - Define a single Scene class.
+        - Ensure all mobjects and animations are from `manimlib`.
         """
 
         completion = client.chat.completions.create(

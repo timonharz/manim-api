@@ -199,11 +199,12 @@ def render_code(
         )
         
     except Exception as e:
+        debug_info = f"CWD: {os.getcwd()}, Files: {os.listdir('.')[:10]}"
         return RenderResult(
             video_path=None,
             temp_dir=temp_dir,
             success=False,
-            error=str(e)
+            error=f"{str(e)} ({debug_info})"
         )
 
 
