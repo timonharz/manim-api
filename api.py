@@ -88,8 +88,14 @@ class RenderRequest(BaseModel):
 
 import asyncio
 
-# Global semaphore to limit concurrent memory-intensive tasks
-_render_semaphore = asyncio.Semaphore(1)
+# Global semaphore to limit concurrent memory-intensive tasks (initialized lazily)
+_render_semaphore: Optional[asyncio.Semaphore] = None
+
+def get_render_semaphore():
+    global _render_semaphore
+    if _render_semaphore is None:
+        _render_semaphore = asyncio.Semaphore(1)
+    return _render_semaphore
 
 
 @app.get("/")
@@ -122,9 +128,12 @@ async def render_animation(request: RenderRequest, background_tasks: BackgroundT
     """
     Render a Manim animation and return the video.
     """
-    async with _render_semaphore:
-        # Render the animation
-        result = render_code(
+    async with get_render_semaphore():
+        # Render the animation in a thread pool to avoid blocking the event loop
+        from starlette.concurrency import run_in_threadpool
+        
+        result = await run_in_threadpool(
+            render_code,
             code=request.code,
             scene_name=request.scene_name,
             quality=request.quality,
@@ -192,8 +201,12 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
     if not video_gen_service:
          raise HTTPException(status_code=500, detail="Generation service not available (missing dependencies?)")
 
-    async with _render_semaphore:
-        result = video_gen_service.generate_video(
+    async with get_render_semaphore():
+        from starlette.concurrency import run_in_threadpool
+        
+        # Run the generation service in a thread pool as it involves blocking calls (LLM, TTS, Render)
+        result = await run_in_threadpool(
+            video_gen_service.generate_video,
             prompt=request.prompt, 
             quality=request.quality, 
             format=request.format,
