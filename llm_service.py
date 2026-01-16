@@ -31,7 +31,7 @@ class LLMService:
 """
 
         system_prompt = f"""
-You are an expert Manim animation developer. Generate Python code using `manimlib` and a narration script.
+You are an expert Manim animation developer. Generate Python code using `manimlib` (ManimGL) and a narration script.
 
 {manim_knowledge}
 
@@ -47,11 +47,12 @@ You are an expert Manim animation developer. Generate Python code using `manimli
 ## CRITICAL RULES (VIOLATION = SYSTEM CRASH):
 1. Use ONLY `from manimlib import *`. 
 2. NEVER use `import manim` or `from manim import ...`.
-3. NEVER use `import manif` or `from manif import ...`. There is NO library called 'manif'.
+3. NEVER use `import manif` or `from manif import ...`.
 4. YOU MUST use `from manimlib import *` as the first line.
 5. Define the Scene class. You may define helper classes, but the MAIN Scene class must be the LAST class defined.
 6. Include `self.add_sound("narration.mp3")` at the start of the main `construct` method.
-7. Create rich, comprehensive, and detailed animations.
+7. Use standard colors (RED, BLUE, GREEN) or HEX codes (e.g. "#FF0000").
+8. Do NOT use `ShowCreation` on Text objects if not sure, use `Write` or `FadeIn`.
 """
 
         completion = client.chat.completions.create(
@@ -59,7 +60,8 @@ You are an expert Manim animation developer. Generate Python code using `manimli
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            model="openai/gpt-oss-120b"
+            # Use a high-performance Groq model
+            model="llama-3.3-70b-versatile"
         )
 
         content = completion.choices[0].message.content
