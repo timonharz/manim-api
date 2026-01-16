@@ -1,11 +1,11 @@
-# Build Version: 1.1.7
+# Build Version: 1.1.8
 # Use python 3.10 slim image
 FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for Manim and OpenGL
+# Install system dependencies required for Manim, OpenGL, and LaTeX
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     build-essential \
@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libglu1-mesa \
     python3-dev \
+    texlive-latex-base \
+    texlive-fonts-recommended \
+    texlive-latex-extra \
+    texlive-fonts-extra \
+    dvisvgm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching

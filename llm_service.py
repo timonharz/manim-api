@@ -72,6 +72,10 @@ Match animation timing to the narration script using self.wait() calls.)
 8. Add explanatory labels with Tex() positioned using `.next_to()` or `.to_edge()`.
 9. Use `self.wait()` between major animation steps for proper pacing with narration.
 10. For complex topics, break the animation into sections using helper methods.
+11. FOR 3D SCENES: Inherit from `ThreeDScene`, NOT `Scene`. Example: `class My3DScene(ThreeDScene):`
+12. FOR 3D CAMERA: Use `self.frame.set_euler_angles(theta=X, phi=Y)` to set camera angles. 
+    NEVER use `set_camera_orientation()` - IT DOES NOT EXIST in manimgl!
+13. FOR 3D TEXT OVERLAYS: Use `.fix_in_frame()` on Text/Tex that should stay fixed on screen.
 
 ## STYLE GUIDELINES:
 - Create visually engaging animations with smooth transitions
@@ -79,6 +83,7 @@ Match animation timing to the narration script using self.wait() calls.)
 - Add mathematical notation on screen to reinforce spoken explanations
 - Build complexity gradually - introduce elements one at a time
 - Use FadeIn/FadeOut for smooth scene transitions
+- In 3D scenes, use `.fix_in_frame()` for titles/labels that shouldn't rotate with camera
 """
 
         completion = client.chat.completions.create(

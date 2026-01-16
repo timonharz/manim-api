@@ -215,6 +215,46 @@ axes = ThreeDAxes(
     z_range=[-3, 3]
 )
 ```
+
+### IMPORTANT: 3D Scene Setup
+```python
+from manimlib import *
+
+class My3DScene(ThreeDScene):
+    def construct(self):
+        # Set initial camera angle
+        self.frame.set_euler_angles(
+            theta=-30 * DEGREES,
+            phi=70 * DEGREES
+        )
+        
+        # Create 3D objects
+        sphere = Sphere(radius=1.0)
+        axes = ThreeDAxes()
+        
+        # For text that should stay fixed on screen (not rotate with 3D view)
+        title = Text("3D Demo")
+        title.to_edge(UP)
+        title.fix_in_frame()  # Critical for 2D overlays in 3D scenes!
+        
+        self.add(title)
+        self.play(ShowCreation(axes))
+        self.play(FadeIn(sphere))
+        
+        # Animate camera rotation
+        self.play(
+            Rotate(sphere, PI, axis=UP),
+            self.frame.animate.increment_theta(30 * DEGREES),
+            run_time=3
+        )
+```
+
+NOTE: In manimgl, use `ThreeDScene` (not Scene) for 3D animations.
+- Do NOT use `set_camera_orientation()` - it doesn't exist in manimgl.
+- Use `self.frame.set_euler_angles()` to set camera angles.
+- Use `self.frame.animate.increment_theta/phi()` to animate camera.
+- Use `.fix_in_frame()` on 2D text/labels so they stay fixed on screen.
+```
 """,
 
     "animations_creation": """
@@ -425,12 +465,29 @@ self.add_sound("narration.mp3")  # Add audio file
 self.add_sound("effect.wav", time_offset=0.5)
 ```
 
-### Camera (for 3D)
+### Camera Frame (for 3D scenes)
 ```python
-self.set_camera_orientation(phi=75*DEGREES, theta=-45*DEGREES)
-self.begin_ambient_camera_rotation(rate=0.1)
-self.stop_ambient_camera_rotation()
-self.move_camera(phi=60*DEGREES, theta=30*DEGREES, run_time=2)
+# Access the camera frame (available as self.frame in any Scene)
+frame = self.frame  # or self.camera.frame
+
+# Set camera orientation with euler angles
+frame.set_euler_angles(
+    theta=-30 * DEGREES,  # Rotation around vertical axis
+    phi=70 * DEGREES,     # Angle from horizontal plane
+)
+
+# Animate camera during a play() call
+self.play(
+    frame.animate.increment_phi(-10 * DEGREES),
+    frame.animate.increment_theta(-20 * DEGREES),
+    run_time=2
+)
+
+# Add continuous rotation with an updater
+frame.add_updater(lambda m, dt: m.increment_theta(-0.1 * dt))
+
+# Stop the updater
+frame.clear_updaters()
 ```
 """,
 
