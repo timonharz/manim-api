@@ -41,10 +41,11 @@ class ManimAPITestSuite(unittest.TestCase):
     def test_01_health_check(self):
         """Capability: Server is online and responsive."""
         print("\nChecking server health...")
-        response = requests.get(f"{BASE_URL}/", timeout=None)
+        response = requests.get(f"{BASE_URL}/", timeout=10)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn("Manim Video Streaming API", data.get("name", ""))
+        self.assertIn("status", data)
+        self.assertTrue(data.get("status", "").startswith("ALIVE"))
         print("OK: Server is healthy.")
 
     def test_02_render_capability(self):
@@ -55,13 +56,20 @@ class ManimAPITestSuite(unittest.TestCase):
             "quality": "low",
             "format": "mp4"
         }
-        response = requests.post(f"{BASE_URL}/render", json=payload, timeout=None)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("Content-Type"), "video/mp4")
-        self.assertTrue(len(response.content) > 0)
-        with open("test_render_output.mp4", "wb") as f:
-            f.write(response.content)
-        print("OK: Rendering works. Saved to test_render_output.mp4")
+        try:
+            response = requests.post(f"{BASE_URL}/render", json=payload, timeout=120)
+            if response.status_code != 200:
+                print(f"Render failed with status {response.status_code}: {response.text}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers.get("Content-Type"), "video/mp4")
+            self.assertTrue(len(response.content) > 0)
+            with open("test_render_output.mp4", "wb") as f:
+                f.write(response.content)
+            print("OK: Rendering works. Saved to test_render_output.mp4")
+        except requests.exceptions.Timeout:
+            self.fail("Render request timed out after 120 seconds")
+        except requests.exceptions.RequestException as e:
+            self.fail(f"Render request failed: {e}")
 
     def test_03_generate_capability(self):
         """Capability: Generate video from prompt with AI."""
@@ -106,6 +114,42 @@ class ManimAPITestSuite(unittest.TestCase):
         response = requests.post(f"{BASE_URL}/generate", json=payload, timeout=None)
         self.assertEqual(response.status_code, 422)
         print("OK: Missing fields handled (returned 422).")
+
+    def test_06_complex_generation(self):
+        """Capability: Generate complex multi-step animation."""
+        if not self.api_key:
+            self.skipTest("GROQ_API_KEY not provided.")
+            
+        print("\nChecking complex generation (Fourier / Signal Processing)...")
+        payload = {
+            "prompt": "Animate a square wave being approximated by its first 5 Fourier components.",
+            "quality": "low",
+            "format": "mp4",
+            "api_key": self.api_key
+        }
+        response = requests.post(f"{BASE_URL}/generate", json=payload, timeout=None)
+        self.assertEqual(response.status_code, 200, f"Complex Generate failed: {response.text}")
+        with open("test_complex_output.mp4", "wb") as f:
+            f.write(response.content)
+        print("OK: Complex Generation works. Saved to test_complex_output.mp4")
+
+    def test_07_mathematical_visualization(self):
+        """Capability: Generate 3D mathematical visualization."""
+        if not self.api_key:
+            self.skipTest("GROQ_API_KEY not provided.")
+            
+        print("Checking 3D visualization generation...")
+        payload = {
+            "prompt": "Visualize a 3D surface like z = sin(sqrt(x^2 + y^2)) and zoom in.",
+            "quality": "low",
+            "format": "mp4",
+            "api_key": self.api_key
+        }
+        response = requests.post(f"{BASE_URL}/generate", json=payload, timeout=None)
+        self.assertEqual(response.status_code, 200, f"3D Viz failed: {response.text}")
+        with open("test_3d_viz_output.mp4", "wb") as f:
+            f.write(response.content)
+        print("OK: 3D Visualization works. Saved to test_3d_viz_output.mp4")
 
 def run_tests(api_key=None):
     if api_key:

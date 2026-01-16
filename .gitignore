@@ -153,3 +153,8 @@ dmypy.json
 /custom_config.yml
 test.py
 CLAUDE.md
+
+# Build and Test Artifacts
+*.mp4
+.build/
+.Env

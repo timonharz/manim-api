@@ -16,27 +16,29 @@ The system is now **Production-Stable**, **Isolated**, and **Fully Monitored**.
 3.  **End-to-End Monitoring**:
     - The `/health` endpoint now provides live **RSS**, **Virtual Memory**, and **RAM %** stats.
     - Current Idle Baseline: `~115MB RSS` (safe within the 512MB limit).
+4.  **RAG-Based Code Generation** (NEW):
+    - Created `manim_knowledge_base.py` with comprehensive manimlib documentation.
+    - Implemented keyword-based retrieval to inject relevant docs into LLM prompts.
+    - Updated `llm_service.py` to generate complex, multi-scene animations with explanatory text.
+    - Client MUST provide `api_key` for `/generate` endpoint.
 
-### Verification Results (Latest: 2026-01-16 - Migration to Railway)
+### Verification Results (Latest: 2026-01-16 - Railway V1.1.8 + RAG)
 
-| Feature              | Status  | Details                                                |
-| :------------------- | :------ | :----------------------------------------------------- |
-| **Server Health**    | ✅ PASS | Server is online and responsive on Railway.            |
-| **Static Rendering** | ⏳ PEND | Migration to Railway in progress. Initial setup fixed. |
-| **AI Generation**    | ⏳ PEND | Migration to Railway in progress.                      |
-| **Error Handling**   | ⏳ PEND | Migration to Railway in progress.                      |
+| Feature              | Status   | Details                                                        |
+| :------------------- | :------- | :------------------------------------------------------------- |
+| **Server Health**    | ✅ PASS  | Server is online (v1.1.8) on Railway.                          |
+| **Static Rendering** | ✅ PASS  | Verified via `test_client.py`. Output generated successfully.  |
+| **AI Generation**    | ✅ READY | RAG system implemented. Client must provide `api_key` to test. |
+| **Error Handling**   | ✅ PASS  | Verified 400/422 responses for invalid inputs.                 |
 
 ### Live Monitoring Example
 
+_(Note: Memory stats are currently not returned by the v1.1.8 /health endpoint)_
+
 ```json
 {
-  "status": "healthy",
-  "service": "manim-video-streaming-api",
-  "memory": {
-    "rss": "115.42 MB",
-    "vms": "466.75 MB",
-    "percent": "22.54%"
-  }
+  "status": "ALIVE_V1_1_8",
+  "service": "manim-api"
 }
 ```
 

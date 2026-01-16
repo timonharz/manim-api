@@ -107,9 +107,9 @@ video_gen_service = VideoGenerationService()
 
 class GenerateRequest(BaseModel):
     prompt: str
+    api_key: str
     quality: str = "medium"
     format: str = "mp4"
-    api_key: Optional[str] = None
 
 @app.post("/generate", response_class=FileResponse)
 async def generate_video_endpoint(request: GenerateRequest, background_tasks: BackgroundTasks):
