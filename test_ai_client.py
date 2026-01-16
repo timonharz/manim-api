@@ -99,7 +99,7 @@ class AIGenerationTestSuite(unittest.TestCase):
             self._save_video(response, "simple_circle")
             print("     PASS: Simple circle generated.")
         else:
-            print(f"     FAIL: {response.status_code} - {response.text[:200]}")
+            print(f"     FAIL: {response.status_code} - {response.text}")
         self.assertEqual(response.status_code, 200)
 
     def test_02_simple_text(self):
@@ -112,7 +112,7 @@ class AIGenerationTestSuite(unittest.TestCase):
             self._save_video(response, "simple_text")
             print("     PASS: Text animation generated.")
         else:
-            print(f"     FAIL: {response.status_code} - {response.text[:200]}")
+            print(f"     FAIL: {response.status_code} - {response.text}")
         self.assertEqual(response.status_code, 200)
 
     # --- Intermediate Generation Tests ---
@@ -128,7 +128,7 @@ class AIGenerationTestSuite(unittest.TestCase):
             self._save_video(response, "pythagorean")
             print("     PASS: Pythagorean theorem video generated.")
         else:
-            print(f"     FAIL: {response.status_code} - {response.text[:200]}")
+            print(f"     FAIL: {response.status_code} - {response.text}")
         self.assertEqual(response.status_code, 200)
 
     def test_04_sine_wave(self):
@@ -143,7 +143,7 @@ class AIGenerationTestSuite(unittest.TestCase):
             self._save_video(response, "sine_wave")
             print("     PASS: Sine wave video generated.")
         else:
-            print(f"     FAIL: {response.status_code} - {response.text[:200]}")
+            print(f"     FAIL: {response.status_code} - {response.text}")
         self.assertEqual(response.status_code, 200)
 
     # --- Complex Generation Tests ---
@@ -212,6 +212,30 @@ class AIGenerationTestSuite(unittest.TestCase):
         response = self._make_generate_request("")
         print(f"     Status: {response.status_code}")
         self.assertIn(response.status_code, [400, 422, 500])
+
+    def test_10_complex_student_task(self):
+        """Complex: Student task - Riemann Sum Approximation."""
+        if not self.api_key:
+            self.skipTest("GROQ_API_KEY not provided.")
+        print("\n[10] Testing Riemann Sum Approximation (Complex Student Task)...")
+        prompt = (
+            "Visualize the concept of a Riemann Sum approximation for the function f(x) = x^2 on the interval [0, 2]. "
+            "Show the function graph first. Then, use 4 rectangles to approximate the area under the curve using left endpoints. "
+            "Explain that the sum of the areas of these rectangles approximates the definite integral. "
+            "Finally, increase the number of rectangles to 10 to show how the approximation improves."
+        )
+        response = self._make_generate_request(prompt)
+        if response.status_code == 200:
+            self._save_video(response, "riemann_sum")
+            print("     PASS: Riemann Sum video generated.")
+        else:
+            print(f"     FAIL: {response.status_code} - {response.text}")
+        
+        # We allow this to fail if production hasn't deployed, but we want to attempt it.
+        if response.status_code != 200:
+             print(f"     NOTE: High probability of failure if production env is outdated.")
+        
+        self.assertEqual(response.status_code, 200)
 
 
 def run_tests(api_key: Optional[str] = None, verbosity: int = 1):
