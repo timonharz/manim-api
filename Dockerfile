@@ -27,7 +27,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install runtime dependencies with minimal TeX Live
-# Using --no-install-recommends to avoid pulling in massive optional packages
+# We combine install and cleanup in one layer to keep the image small (< 4GB)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libgl1 \
@@ -41,15 +41,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-recommended \
     dvipng \
     dvisvgm \
-    && rm -rf /var/lib/apt/lists/*
-
-# Clean up to reduce image size
-RUN apt-get clean || true \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/* /var/tmp/* \
     && rm -rf /usr/share/doc/* \
     && rm -rf /usr/share/man/* \
     && rm -rf /usr/share/texlive/texmf-dist/doc \
-    && rm -rf /usr/share/texlive/texmf-dist/source
+    && rm -rf /usr/share/texlive/texmf-dist/source \
+    && rm -rf /usr/share/texlive/texmf-dist/tex/latex/base/README* \
+    && find /usr/share/texlive -type f -name "*.pdf" -delete
 
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
