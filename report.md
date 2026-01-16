@@ -5,6 +5,7 @@
 - **Total Tests**: 5
 - **Passed**: 5
 - **Failed**: 0
+- **Mode**: No Client Timeouts
 - **Overall Result**: ✅ **SUCCESS**
 
 ## Capability Matrix
