@@ -39,6 +39,8 @@ RUN pip install .
 # LIBGL_ALWAYS_SOFTWARE=1 forces software rendering if hardware is not available
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV PYTHONUNBUFFERED=1
+# Limit memory fragmentation to help stay within 512MB
+ENV MALLOC_ARENA_MAX=2
 
 # Expose port
 EXPOSE 8000
