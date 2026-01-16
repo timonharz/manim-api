@@ -59,7 +59,9 @@ class ManimAPITestSuite(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("Content-Type"), "video/mp4")
         self.assertTrue(len(response.content) > 0)
-        print("OK: Rendering works.")
+        with open("test_render_output.mp4", "wb") as f:
+            f.write(response.content)
+        print("OK: Rendering works. Saved to test_render_output.mp4")
 
     def test_03_generate_capability(self):
         """Capability: Generate video from prompt with AI."""
@@ -68,7 +70,7 @@ class ManimAPITestSuite(unittest.TestCase):
             
         print(f"Checking AI generation capability...")
         payload = {
-            "prompt": "Show a simple red square",
+            "prompt": "Explain Pythagoras theorem with a triangle",
             "quality": "low",
             "format": "mp4",
             "api_key": self.api_key
@@ -78,7 +80,9 @@ class ManimAPITestSuite(unittest.TestCase):
         self.assertEqual(response.status_code, 200, f"Generate failed: {response.text}")
         self.assertEqual(response.headers.get("Content-Type"), "video/mp4")
         self.assertTrue(len(response.content) > 0)
-        print("OK: AI Generation works.")
+        with open("test_generate_output.mp4", "wb") as f:
+            f.write(response.content)
+        print("OK: AI Generation works. Saved to test_generate_output.mp4")
 
     def test_04_invalid_api_key_handling(self):
         """Capability: Handle invalid API keys gracefully."""
