@@ -45,6 +45,24 @@ app = FastAPI(
 )
 
 
+# Global exception handler to prevent 502 errors
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions and return a proper JSON response."""
+    error_detail = str(exc)
+    tb = traceback.format_exc()
+    print(f"Unhandled exception: {error_detail}\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {error_detail}"}
+    )
+
+
+
 class RenderRequest(BaseModel):
     """Request body for rendering a Manim animation."""
     

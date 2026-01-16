@@ -231,44 +231,61 @@ class VideoGenerationService:
     
     def generate_video(self, prompt: str, quality: str = "medium", format: str = "mp4", api_key: str = None) -> RenderResult:
         """
-        Orchestrates the generation flow:
+        Orchestrates the generation flow with retry logic:
         1. LLM generates code + script
         2. TTS generates audio (narration.mp3)
         3. render_code handles the rendering (with the code referencing narration.mp3)
+        
+        Retries once on failure with a refined prompt.
         """
-        temp_audio_path = None
-        try:
-            # 1. Generate Content
-            code, script = self.llm.generate_manim_content(prompt, api_key=api_key)
-            
-            # 2. Generate Audio
-            # We create a temp file for the audio generation first
-            temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
-            os.close(temp_fd)
-            temp_audio_path = Path(temp_path_str)
-            
-            self.tts.generate_audio(script, temp_audio_path)
-            audio_bytes = temp_audio_path.read_bytes()
-            
-            # 3. Render Code with Audio Asset
-            # The LLM is instructed to use "narration.mp3"
-            assets = {"narration.mp3": audio_bytes}
-            
-            return render_code(
-                code=code,
-                quality=quality,
-                format=format,
-                assets=assets
-            )
-            
-        except Exception as e:
-            debug_info = f"CWD: {os.getcwd()}, Files: {os.listdir('.')[:10]}"
-            return RenderResult(Path(""), Path(""), False, f"Generation failed: {str(e)} ({debug_info})")
-        finally:
-            # Cleanup local temp audio file
-            if temp_audio_path and temp_audio_path.exists():
-                try:
-                    os.unlink(temp_audio_path)
-                except:
-                    pass
-
+        max_attempts = 2
+        last_error = None
+        
+        for attempt in range(max_attempts):
+            temp_audio_path = None
+            try:
+                # 1. Generate Content (with retry hint on second attempt)
+                effective_prompt = prompt
+                if attempt > 0:
+                    effective_prompt = f"{prompt}\n\nIMPORTANT: Use ONLY `from manimlib import *`. Do NOT use 'manim' or any other library. Keep it simple."
+                
+                code, script = self.llm.generate_manim_content(effective_prompt, api_key=api_key)
+                
+                # 2. Generate Audio
+                temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
+                os.close(temp_fd)
+                temp_audio_path = Path(temp_path_str)
+                
+                self.tts.generate_audio(script, temp_audio_path)
+                audio_bytes = temp_audio_path.read_bytes()
+                
+                # 3. Render Code with Audio Asset
+                assets = {"narration.mp3": audio_bytes}
+                
+                result = render_code(
+                    code=code,
+                    quality=quality,
+                    format=format,
+                    assets=assets
+                )
+                
+                if result.success:
+                    return result
+                else:
+                    last_error = result.error
+                    print(f"Attempt {attempt + 1} failed: {last_error}")
+                    result.cleanup()
+                    
+            except Exception as e:
+                last_error = str(e)
+                print(f"Attempt {attempt + 1} exception: {last_error}")
+            finally:
+                # Cleanup local temp audio file
+                if temp_audio_path and temp_audio_path.exists():
+                    try:
+                        os.unlink(temp_audio_path)
+                    except:
+                        pass
+        
+        # All attempts failed
+        return RenderResult(Path(""), Path(""), False, f"Generation failed after {max_attempts} attempts: {last_error}")
