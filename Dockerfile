@@ -1,4 +1,4 @@
-# Build Version: 1.0.6
+# Build Version: 1.0.7
 # Use python 3.10 slim image
 FROM python:3.10-slim
 
@@ -6,15 +6,11 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install system dependencies required for Manim and OpenGL
-# ffmpeg: for video encoding
-# build-essential: for compiling python packages
-# libgl1-mesa-glx, libgl1-mesa-dev: for OpenGL
-# libpango1.0-dev: for text rendering (manimpango)
-# xauth, xvfb: for headless display (if needed, though we use OSMesa or offscreen)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     build-essential \
     libgl1 \
+    libgl1-mesa-glx \
     libgl1-mesa-dev \
     libpango1.0-dev \
     libx11-6 \
@@ -48,7 +44,5 @@ ENV MALLOC_ARENA_MAX=2
 # Expose port
 EXPOSE 8000
 
-# Command to run the application
-# -w 1: Single worker to respect 512MB limit
-# --max-requests/jitter: Restart worker periodically to clear any memory leaks
-CMD ["python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
+# Command to run the application with virtual display context
+CMD ["xvfb-run", "-s", "-screen 0 1280x720x24", "python", "-m", "gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--max-requests", "1000", "--max-requests-jitter", "50", "--bind", "0.0.0.0:8000", "--timeout", "300", "api:app"]
