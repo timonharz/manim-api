@@ -148,6 +148,13 @@ Match animation timing to the narration script using self.wait() calls.)
                 lines = lines[:-1]
             code = "\n".join(lines).strip()
         
+        # Sanitize code: Replace problematic unicode characters with ASCII equivalents
+        # Replace en-dash (U+2013) and em-dash (U+2014) with hyphen
+        code = code.replace('–', '-').replace('—', '-')
+        # Replace smart quotes with regular quotes
+        code = code.replace('"', '"').replace('"', '"')
+        code = code.replace(''', "'").replace(''', "'")
+        
         # Validate the code has required import
         if "from manimlib import" not in code:
             code = "from manimlib import *\n\n" + code
