@@ -71,11 +71,11 @@ class RenderRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"status": "ALIVE_V1_1_8", "msg": "If you see this, v1.1.8 is live"}
+    return {"status": "ALIVE_V1_1_10", "msg": "If you see this, v1.1.10 is live"}
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ALIVE_V1_1_8", "service": "manim-api"}
+    return {"status": "ALIVE_V1_1_10", "service": "manim-api"}
 
 @app.post("/ping")
 async def ping():

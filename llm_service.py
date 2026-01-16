@@ -61,7 +61,7 @@ You are an expert Manim animation developer. Generate Python code using `manimli
                 {"role": "user", "content": prompt}
             ],
             # Use a high-performance Groq model
-            model="llama-3.3-70b-versatile"
+            model="openai/gpt-oss-120b"
         )
 
         content = completion.choices[0].message.content
