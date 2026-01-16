@@ -37,3 +37,4 @@ python-dotenv
 gunicorn
 pyglet
 langdetect
+psutil

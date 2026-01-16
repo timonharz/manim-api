@@ -5,6 +5,7 @@ A FastAPI application that accepts Manim animation code and returns the rendered
 """
 
 import os
+import psutil
 from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -14,6 +15,23 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from render_service import render_code, RenderResult
+
+
+def get_memory_info():
+    """Get current memory usage info."""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    return {
+        "rss": f"{mem_info.rss / 1024 / 1024:.2f} MB",
+        "vms": f"{mem_info.vms / 1024 / 1024:.2f} MB",
+        "percent": f"{process.memory_percent():.2f}%"
+    }
+
+
+def log_memory(stage: str):
+    """Log current memory usage."""
+    info = get_memory_info()
+    print(f"MEMORY [{stage}]: {info['rss']} (RSS), {info['percent']} (Total %)")
 
 
 # Store active render results for cleanup
@@ -116,7 +134,12 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "manim-video-streaming-api"}
+    mem = get_memory_info()
+    return {
+        "status": "healthy", 
+        "service": "manim-video-streaming-api",
+        "memory": mem
+    }
 
 
 @app.post(
@@ -129,6 +152,7 @@ async def render_animation(request: RenderRequest, background_tasks: BackgroundT
     Render a Manim animation and return the video.
     """
     async with get_render_semaphore():
+        log_memory("BEFORE_RENDER")
         # Render the animation in a thread pool to avoid blocking the event loop
         from starlette.concurrency import run_in_threadpool
         
@@ -175,6 +199,7 @@ async def render_animation(request: RenderRequest, background_tasks: BackgroundT
         # Explicitly clear memory after render
         import gc
         gc.collect()
+        log_memory("AFTER_RENDER")
         
         return response
 
@@ -202,6 +227,7 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
          raise HTTPException(status_code=500, detail="Generation service not available (missing dependencies?)")
 
     async with get_render_semaphore():
+        log_memory("BEFORE_GENERATE")
         from starlette.concurrency import run_in_threadpool
         
         # Run the generation service in a thread pool as it involves blocking calls (LLM, TTS, Render)
@@ -241,6 +267,7 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
         # Explicitly clear memory after generation
         import gc
         gc.collect()
+        log_memory("AFTER_GENERATE")
         
         return response
 
