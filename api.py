@@ -86,6 +86,12 @@ class RenderRequest(BaseModel):
     format: str = Field("mp4", description="Output format (mp4, gif, mov)")
 
 
+import asyncio
+
+# Global semaphore to limit concurrent memory-intensive tasks
+_render_semaphore = asyncio.Semaphore(1)
+
+
 @app.get("/")
 async def root():
     """Root endpoint with API info."""
@@ -116,51 +122,52 @@ async def render_animation(request: RenderRequest, background_tasks: BackgroundT
     """
     Render a Manim animation and return the video.
     """
-    # Render the animation
-    result = render_code(
-        code=request.code,
-        scene_name=request.scene_name,
-        quality=request.quality,
-        format=request.format
-    )
-    
-    if not result.success:
-        # Clean up on error
-        result.cleanup()
-        raise HTTPException(status_code=400, detail=result.error)
-    
-    if not result.video_path or not result.video_path.exists():
-        result.cleanup()
-        raise HTTPException(status_code=500, detail="Video file was not generated")
-    
-    # Store for cleanup
-    render_id = str(result.video_path.stem)
-    _active_renders[render_id] = result
-    
-    # Schedule cleanup after response is sent
-    background_tasks.add_task(cleanup_render, render_id)
-    
-    # Determine media type
-    media_types = {
-        ".mp4": "video/mp4",
-        ".gif": "image/gif",
-        ".mov": "video/quicktime",
-    }
-    suffix = result.video_path.suffix.lower()
-    media_type = media_types.get(suffix, "application/octet-stream")
-    
-    # Return the video file
-    response = FileResponse(
-        path=str(result.video_path),
-        media_type=media_type,
-        filename=f"animation{suffix}"
-    )
-    
-    # Explicitly clear memory after render
-    import gc
-    gc.collect()
-    
-    return response
+    async with _render_semaphore:
+        # Render the animation
+        result = render_code(
+            code=request.code,
+            scene_name=request.scene_name,
+            quality=request.quality,
+            format=request.format
+        )
+        
+        if not result.success:
+            # Clean up on error
+            result.cleanup()
+            raise HTTPException(status_code=400, detail=result.error)
+        
+        if not result.video_path or not result.video_path.exists():
+            result.cleanup()
+            raise HTTPException(status_code=500, detail="Video file was not generated")
+        
+        # Store for cleanup
+        render_id = str(result.video_path.stem)
+        _active_renders[render_id] = result
+        
+        # Schedule cleanup after response is sent
+        background_tasks.add_task(cleanup_render, render_id)
+        
+        # Determine media type
+        media_types = {
+            ".mp4": "video/mp4",
+            ".gif": "image/gif",
+            ".mov": "video/quicktime",
+        }
+        suffix = result.video_path.suffix.lower()
+        media_type = media_types.get(suffix, "application/octet-stream")
+        
+        # Return the video file
+        response = FileResponse(
+            path=str(result.video_path),
+            media_type=media_type,
+            filename=f"animation{suffix}"
+        )
+        
+        # Explicitly clear memory after render
+        import gc
+        gc.collect()
+        
+        return response
 
 
 # Service instantiation
@@ -185,43 +192,44 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
     if not video_gen_service:
          raise HTTPException(status_code=500, detail="Generation service not available (missing dependencies?)")
 
-    result = video_gen_service.generate_video(
-        prompt=request.prompt, 
-        quality=request.quality, 
-        format=request.format,
-        api_key=request.api_key
-    )
-    
-    if not result.success:
-        result.cleanup()
-        raise HTTPException(status_code=400, detail=result.error)
+    async with _render_semaphore:
+        result = video_gen_service.generate_video(
+            prompt=request.prompt, 
+            quality=request.quality, 
+            format=request.format,
+            api_key=request.api_key
+        )
         
-    if not result.video_path or not result.video_path.exists():
-        result.cleanup()
-        raise HTTPException(status_code=500, detail="Video file was not generated")
+        if not result.success:
+            result.cleanup()
+            raise HTTPException(status_code=400, detail=result.error)
+            
+        if not result.video_path or not result.video_path.exists():
+            result.cleanup()
+            raise HTTPException(status_code=500, detail="Video file was not generated")
 
-    # Store for cleanup
-    render_id = str(result.video_path.stem)
-    _active_renders[render_id] = result
-    
-    background_tasks.add_task(cleanup_render, render_id)
-    
-    # Determine media type
-    media_types = {".mp4": "video/mp4", ".gif": "image/gif", ".mov": "video/quicktime"}
-    suffix = result.video_path.suffix.lower()
-    media_type = media_types.get(suffix, "application/octet-stream")
-    
-    response = FileResponse(
-        path=str(result.video_path),
-        media_type=media_type,
-        filename=f"generated_video{suffix}"
-    )
-    
-    # Explicitly clear memory after generation
-    import gc
-    gc.collect()
-    
-    return response
+        # Store for cleanup
+        render_id = str(result.video_path.stem)
+        _active_renders[render_id] = result
+        
+        background_tasks.add_task(cleanup_render, render_id)
+        
+        # Determine media type
+        media_types = {".mp4": "video/mp4", ".gif": "image/gif", ".mov": "video/quicktime"}
+        suffix = result.video_path.suffix.lower()
+        media_type = media_types.get(suffix, "application/octet-stream")
+        
+        response = FileResponse(
+            path=str(result.video_path),
+            media_type=media_type,
+            filename=f"generated_video{suffix}"
+        )
+        
+        # Explicitly clear memory after generation
+        import gc
+        gc.collect()
+        
+        return response
 
 
 if __name__ == "__main__":
