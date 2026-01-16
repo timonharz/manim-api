@@ -17,14 +17,14 @@ The system is now **Production-Stable**, **Isolated**, and **Fully Monitored**.
     - The `/health` endpoint now provides live **RSS**, **Virtual Memory**, and **RAM %** stats.
     - Current Idle Baseline: `~115MB RSS` (safe within the 512MB limit).
 
-### Verification Results (Latest: 2026-01-16)
+### Verification Results (Latest: 2026-01-16 - Migration to Railway)
 
-| Feature              | Status  | Details                                                                                           |
-| :------------------- | :------ | :------------------------------------------------------------------------------------------------ |
-| **Server Health**    | ✅ PASS | Server is online and responsive.                                                                  |
-| **Static Rendering** | ❌ FAIL | Returned **502 Bad Gateway**. Likely a deployment synchronization issue or timeout on Render.com. |
-| **AI Generation**    | ❌ FAIL | Returned **502 Bad Gateway**. (Note: GROQ_API_KEY was not set for this run).                      |
-| **Error Handling**   | ❌ FAIL | Returned **502 Bad Gateway** instead of expected 400/422 errors.                                  |
+| Feature              | Status  | Details                                                |
+| :------------------- | :------ | :----------------------------------------------------- |
+| **Server Health**    | ✅ PASS | Server is online and responsive on Railway.            |
+| **Static Rendering** | ⏳ PEND | Migration to Railway in progress. Initial setup fixed. |
+| **AI Generation**    | ⏳ PEND | Migration to Railway in progress.                      |
+| **Error Handling**   | ⏳ PEND | Migration to Railway in progress.                      |
 
 ### Live Monitoring Example
 

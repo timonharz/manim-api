@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any
 
 # API Configuration
-BASE_URL = "https://manim-api-xomj.onrender.com"
+BASE_URL = "https://manim-api-production.up.railway.app"
 
 # Sample Manim Code for Testing Rendering
 VALID_CODE = """

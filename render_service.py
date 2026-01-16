@@ -105,7 +105,7 @@ def render_code(
             "camera_config": {
                 "resolution": resolution,
                 "fps": 30,  # Default to 30 to avoid top-level manim_config
-                "background_color": "BLACK",
+                "background_color": "#000000",
                 "background_opacity": 1.0,
             },
             "file_writer_config": {
