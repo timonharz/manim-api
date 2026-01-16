@@ -17,14 +17,14 @@ The system is now **Production-Stable**, **Isolated**, and **Fully Monitored**.
     - The `/health` endpoint now provides live **RSS**, **Virtual Memory**, and **RAM %** stats.
     - Current Idle Baseline: `~115MB RSS` (safe within the 512MB limit).
 
-### Verification Results
+### Verification Results (Latest: 2026-01-16)
 
-| Feature              | Status    | Details                                                                                                                      |
-| :------------------- | :-------- | :--------------------------------------------------------------------------------------------------------------------------- |
-| **Server Health**    | ✅ PASS   | Live stats available: `{"memory": {"rss": "115.42 MB", ...}}`.                                                               |
-| **Static Rendering** | ✅ PASS   | `test_render_output.mp4` generated successfully via isolated subprocess.                                                     |
-| **AI Generation**    | ✅ PASS\* | Logic is functional. Occasional LLM "NameErrors" (e.g. `MathTex`) can occur; mitigated with retry logic and hardened prompt. |
-| **Error Handling**   | ✅ PASS   | Correctly handles invalid API keys (400) and missing fields (422).                                                           |
+| Feature              | Status  | Details                                                                                           |
+| :------------------- | :------ | :------------------------------------------------------------------------------------------------ |
+| **Server Health**    | ✅ PASS | Server is online and responsive.                                                                  |
+| **Static Rendering** | ❌ FAIL | Returned **502 Bad Gateway**. Likely a deployment synchronization issue or timeout on Render.com. |
+| **AI Generation**    | ❌ FAIL | Returned **502 Bad Gateway**. (Note: GROQ_API_KEY was not set for this run).                      |
+| **Error Handling**   | ❌ FAIL | Returned **502 Bad Gateway** instead of expected 400/422 errors.                                  |
 
 ### Live Monitoring Example
 

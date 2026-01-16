@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     build-essential \
     libgl1 \
-    libgl1-mesa-glx \
     libgl1-mesa-dev \
     libpango1.0-dev \
     libx11-6 \

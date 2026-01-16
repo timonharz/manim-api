@@ -123,3 +123,7 @@ async def generate_video_endpoint(request: GenerateRequest, background_tasks: Ba
         background_tasks.add_task(cleanup_render, render_id)
         
         return FileResponse(path=str(result.video_path), filename=f"video{result.video_path.suffix}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
