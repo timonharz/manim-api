@@ -105,9 +105,9 @@ You are an expert Manim animation developer. Your goal is to generate Python cod
 
 ## CRITICAL RULES:
 1. Use ONLY `from manimlib import *`. NEVER use `manim`, `manif`, or any other library.
-2. Define exactly ONE Scene class.
-3. Include `self.add_sound("narration.mp3")` at the start of `construct`.
-4. Keep the animation simple and focused.
+2. You may define helper classes, but the MAIN Scene class must be the LAST class defined.
+3. Include `self.add_sound("narration.mp3")` at the start of the main `construct` method.
+4. Create rich, comprehensive, and detailed animations. The video should be long and in-depth.
 5. Only use classes and methods listed above.
 """
 
@@ -116,7 +116,7 @@ You are an expert Manim animation developer. Your goal is to generate Python cod
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            model="gpt-oss-120b"
+            model="gpt-oss-120b" # keep gpt-oss-120b for now
         )
 
         content = completion.choices[0].message.content
