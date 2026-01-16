@@ -116,7 +116,7 @@ You are an expert Manim animation developer. Your goal is to generate Python cod
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            model="openai/gpt-oss-120b", # Or another available model on Groq
+            model="llama-3.3-70b-versatile",
         )
 
         content = completion.choices[0].message.content

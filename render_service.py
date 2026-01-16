@@ -294,4 +294,4 @@ class VideoGenerationService:
                         pass
         
         # All attempts failed
-        return RenderResult(Path(""), Path(""), False, f"Generation failed after {max_attempts} attempts: {last_error}")
+        return RenderResult(None, None, False, f"Generation failed after {max_attempts} attempts: {last_error}")
