@@ -94,7 +94,8 @@ SCRIPT:
 6. Use `self.wait()` to sync with the script timing.
 7. PREFER `Text("String")` over `Tex(r"\\text{{String}}")`.
 8. Use `self.frame.set_euler_angles()` for 3D camera.
-9. Use `ShowCreation` (not Create), `Tex` (not MathTex).
+9. Use `ShowCreation` (not Create).
+10. For MATH formulas (fractions, limits, integrals, etc.), use `MathTex(r"...")`. For plain TEXT, use `Text("...")` or `Tex(r"$...$")`.
 """
         messages = [
             {"role": "system", "content": system_prompt},
@@ -174,7 +175,8 @@ SCRIPT:
              code = always_redraw_pattern.sub(fix_always_redraw, code)
 
         # 3. Fix common hallucinations
-        code = re.sub(r'\bMathTex\b', 'Tex', code)
+        # NOTE: Do NOT replace MathTex with Tex - they serve different purposes!
+        # MathTex is for math mode (\frac, \lim, etc.), Tex is for text mode
         code = re.sub(r'\bCreate\b(?!\w)', 'ShowCreation', code)
         
         # 4. Fix Unicode
