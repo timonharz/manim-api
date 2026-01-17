@@ -108,6 +108,95 @@ SCRIPT:
         )
         return completion.choices[0].message.content
 
+    def _extract_code(self, response: str) -> str:
+        """Extracts and dedents code from LLM response."""
+        import re
+        import textwrap
+        
+        code = None
+        
+        # 1. Try explicit [CODE] tags
+        match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", response, re.DOTALL | re.IGNORECASE)
+        if match:
+            code = match.group(1)
+            
+        # 2. Try Markdown code blocks
+        if not code:
+            match = re.search(r"```python(.*?)```", response, re.DOTALL | re.IGNORECASE)
+            if match:
+                code = match.group(1)
+
+        # 3. Fallback: Heuristic extraction
+        if not code:
+            # Look for common starting points
+            start_patterns = ["from manimlib import", "import manimlib", "class "]
+            start_idx = -1
+            for p in start_patterns:
+                idx = response.find(p)
+                if idx != -1:
+                    if start_idx == -1 or idx < start_idx:
+                        start_idx = idx
+            
+            if start_idx != -1:
+                code = response[start_idx:]
+                # Basic cleanup of trailing markdown
+                if "```" in code:
+                    code = code.split("```")[0]
+            else:
+                code = response  # Absolute desperation
+        
+        # Critical: Dedent the code
+        if code:
+            # First, strip empty lines from start/end
+            code = code.strip()
+            # Then dedent - this handles cases where the LLM indented the whole block
+            return textwrap.dedent(code)
+            
+        return ""
+
+    def _post_process_code(self, code: str) -> str:
+        """Sanitizes and fixes common issues in generated code."""
+        import re
+        
+        # 1. Fix Imports
+        if "from manimlib import" not in code:
+            code = "from manimlib import *\n\n" + code
+            
+        # 2. Fix always_redraw
+        always_redraw_pattern = re.compile(r'(\w+)\s*=\s*always_redraw\s*\(\s*(\w+)\s*\)')
+        if always_redraw_pattern.search(code):
+             def fix_always_redraw(match):
+                var_name = match.group(1)
+                func_name = match.group(2)
+                return f'{var_name} = {func_name}()\n        {var_name}.add_updater(lambda m: m.become({func_name}()))'
+             code = always_redraw_pattern.sub(fix_always_redraw, code)
+
+        # 3. Fix common hallucinations
+        code = re.sub(r'\bMathTex\b', 'Tex', code)
+        code = re.sub(r'\bCreate\b(?!\w)', 'ShowCreation', code)
+        
+        # 4. Fix Unicode
+        code = code.replace('–', '-').replace('—', '-')
+        
+        # 5. LaTeX Sanitization
+        if r"\text{" in code:
+            code = re.sub(r'\\text\{([^}]+)\}', r'\\mathrm{\1}', code)
+            
+        # 6. Ensure Class Structure (Wrap naked fragments)
+        import re
+        if not re.search(r"class\s+\w+\(Scene\):", code):
+            # No scene class found, wrap it
+            indented_code = "\n".join(["    " + line for line in code.split("\n")])
+            code = f"""
+from manimlib import *
+
+class GeneratedScene(Scene):
+    def construct(self):
+{indented_code}
+"""
+        
+        return code
+
     def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
         """
         Orchestrates the 3-step generation pipeline.
@@ -138,84 +227,29 @@ SCRIPT:
 
         # 3. Code
         print("DEBUG: Generating Code...")
-        # RE-RETRIEVE knowledge using the Storyboard to catch technical keywords (e.g. "graph", "3d")
-        # that might have been in the generated plan but not the initial simple prompt.
+        # RE-RETRIEVE knowledge using the Storyboard
         code_knowledge = retrieve_relevant_knowledge(storyboard_resp + "\n" + prompt, max_sections=8)
         print(f"DEBUG: Retrieved code context: {len(code_knowledge)} chars")
         
         code_resp = self.generate_code(prompt, storyboard_resp, script, code_knowledge, api_key)
         print(f"DEBUG: Raw LLM Code Response (first 500 chars):\n{code_resp[:500]}...")
         
-        # --- Code Extraction Strategy ---
-        code = None
+        # --- Extraction & Processing ---
+        code = self._extract_code(code_resp)
+        code = self._post_process_code(code)
         
-        # 1. Try explicit [CODE] tags
-        match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", code_resp, re.DOTALL | re.IGNORECASE)
-        if match:
-            code = match.group(1).strip()
-            
-        # 2. Try Markdown code blocks
-        if not code:
-            match = re.search(r"```python(.*?)```", code_resp, re.DOTALL | re.IGNORECASE)
-            if match:
-                code = match.group(1).strip()
-                
-        # 3. Fallback: Heuristic extraction (look for imports and class definition)
-        if not code:
-            print("DEBUG: No tags found, attempting heuristic extraction...")
-            # Look for the start of the code (imports)
-            start_patterns = ["from manimlib import", "import manimlib", "class "]
-            start_idx = -1
-            for p in start_patterns:
-                idx = code_resp.find(p)
-                if idx != -1:
-                    if start_idx == -1 or idx < start_idx:
-                        start_idx = idx
-            
-            if start_idx != -1:
-                code = code_resp[start_idx:].strip()
-                # Remove any trailing markdown if present (basic check)
-                if "```" in code:
-                    code = code.split("```")[0].strip()
-            else:
-                code = code_resp.strip() # Desperation
-                
-        # --- Validation & Sanity Checks ---
+        print(f"DEBUG: Code generated (len={len(code)})")
+        
+        # --- Final Validation ---
         import ast
         try:
             ast.parse(code)
             print("DEBUG: Generated code passed AST syntax check.")
         except SyntaxError as e:
             print(f"DEBUG: Generated code FAILED AST check: {e}")
-            # Attempt to rescue common truncation/tag issues
-            if "```" in code:
-                 code = code.replace("```", "")
-        
-        # Fix imports if missing
-        if "from manimlib import" not in code:
-            code = "from manimlib import *\n\n" + code
-
-        # Fix always_redraw
-        always_redraw_pattern = re.compile(r'(\w+)\s*=\s*always_redraw\s*\(\s*(\w+)\s*\)')
-        if always_redraw_pattern.search(code):
-             def fix_always_redraw(match):
-                var_name = match.group(1)
-                func_name = match.group(2)
-                return f'{var_name} = {func_name}()\n        {var_name}.add_updater(lambda m: m.become({func_name}()))'
-             code = always_redraw_pattern.sub(fix_always_redraw, code)
-
-        # Fix common hallucinations
-        code = re.sub(r'\bMathTex\b', 'Tex', code)
-        code = re.sub(r'\bCreate\b(?!\w)', 'ShowCreation', code)
-        
-        # Fix Unicode
-        code = code.replace('–', '-').replace('—', '-')
-        
-        # Final Sanitization: \text{...} -> \mathrm{...}
-        if r"\text{" in code:
-            print("DEBUG: Sanitizing LaTeX \\text{ usages...")
-            code = re.sub(r'\\text\{([^}]+)\}', r'\\mathrm{\1}', code)
-
-        print(f"DEBUG: Code generated (len={len(code)})")
+            # We don't raise here, we attempt to return what we have, 
+            # maybe the user can debug it or the renderer catches it with a better error.
+            # But logging it is crucial.
+            
         return code.strip(), script
 

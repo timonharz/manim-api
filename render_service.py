@@ -82,7 +82,7 @@ def render_code(
         code_file.write_text(code)
         
         # DEBUG: Print code to stdout
-        print(f"--- GENERATED CODE ---\n{code}\n------------------------")
+        print(f"\n====== GENERATED CODE START (Scene: {scene_name}) ======\n{code}\n====== GENERATED CODE END ======\n")
         
         # Validate the code
         try:
