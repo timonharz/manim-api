@@ -88,11 +88,13 @@ SCRIPT:
 ## CRITICAL RULES (VIOLATION = SYSTEM CRASH):
 1. Use ONLY `from manimlib import *` as the FIRST import line.
 2. NEVER use `import manim` or `from manim import ...`.
-3. Include `self.add_sound("narration.mp3")` at the start of `construct`.
-4. Use `self.wait()` to sync with the script timing.
-5. PREFER `Text("String")` over `Tex(r"\\text{{String}}")`.
-6. Use `self.frame.set_euler_angles()` for 3D camera.
-7. Use `ShowCreation` (not Create), `Tex` (not MathTex).
+3. Create a SINGLE `Scene` class named `GeneratedScene` containing the ENTIRE animation.
+4. DO NOT create multiple Scene classes. Combine all storyboard parts into one `construct` method.
+5. Include `self.add_sound("narration.mp3")` at the start of `construct`.
+6. Use `self.wait()` to sync with the script timing.
+7. PREFER `Text("String")` over `Tex(r"\\text{{String}}")`.
+8. Use `self.frame.set_euler_angles()` for 3D camera.
+9. Use `ShowCreation` (not Create), `Tex` (not MathTex).
 """
         messages = [
             {"role": "system", "content": system_prompt},
