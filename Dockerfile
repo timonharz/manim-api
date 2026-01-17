@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-fonts-extra \
     texlive-humanities \
     texlive-science \
+    tipa \
     dvipng \
     dvisvgm \
     xauth \
