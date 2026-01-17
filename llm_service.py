@@ -113,6 +113,9 @@ SCRIPT:
         Orchestrates the 3-step generation pipeline.
         """
         if not api_key:
+            api_key = self.default_api_key
+            
+        if not api_key:
             raise ValueError("Groq API key is required.")
 
         # 0. Retrieve Knowledge
@@ -141,22 +144,54 @@ SCRIPT:
         print(f"DEBUG: Retrieved code context: {len(code_knowledge)} chars")
         
         code_resp = self.generate_code(prompt, storyboard_resp, script, code_knowledge, api_key)
+        print(f"DEBUG: Raw LLM Code Response (first 500 chars):\n{code_resp[:500]}...")
         
-        # Extract code content
-        code_match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", code_resp, re.DOTALL | re.IGNORECASE)
-        if not code_match:
-             code_match = re.search(r"```python(.*?)```", code_resp, re.DOTALL)
+        # --- Code Extraction Strategy ---
+        code = None
         
-        code = code_match.group(1).strip() if code_match else code_resp
+        # 1. Try explicit [CODE] tags
+        match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", code_resp, re.DOTALL | re.IGNORECASE)
+        if match:
+            code = match.group(1).strip()
+            
+        # 2. Try Markdown code blocks
+        if not code:
+            match = re.search(r"```python(.*?)```", code_resp, re.DOTALL | re.IGNORECASE)
+            if match:
+                code = match.group(1).strip()
+                
+        # 3. Fallback: Heuristic extraction (look for imports and class definition)
+        if not code:
+            print("DEBUG: No tags found, attempting heuristic extraction...")
+            # Look for the start of the code (imports)
+            start_patterns = ["from manimlib import", "import manimlib", "class "]
+            start_idx = -1
+            for p in start_patterns:
+                idx = code_resp.find(p)
+                if idx != -1:
+                    if start_idx == -1 or idx < start_idx:
+                        start_idx = idx
+            
+            if start_idx != -1:
+                code = code_resp[start_idx:].strip()
+                # Remove any trailing markdown if present (basic check)
+                if "```" in code:
+                    code = code.split("```")[0].strip()
+            else:
+                code = code_resp.strip() # Desperation
+                
+        # --- Validation & Sanity Checks ---
+        import ast
+        try:
+            ast.parse(code)
+            print("DEBUG: Generated code passed AST syntax check.")
+        except SyntaxError as e:
+            print(f"DEBUG: Generated code FAILED AST check: {e}")
+            # Attempt to rescue common truncation/tag issues
+            if "```" in code:
+                 code = code.replace("```", "")
         
-        # --- POST PROCESSING & SANITIZATION ---
-        
-        # Clean up code block markers
-        if code.startswith("```"):
-            code = code.strip("`").strip()
-            if code.startswith("python"): code = code[6:].strip()
-
-        # Fix imports
+        # Fix imports if missing
         if "from manimlib import" not in code:
             code = "from manimlib import *\n\n" + code
 
