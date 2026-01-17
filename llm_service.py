@@ -135,7 +135,12 @@ SCRIPT:
 
         # 3. Code
         print("DEBUG: Generating Code...")
-        code_resp = self.generate_code(prompt, storyboard_resp, script, knowledge, api_key)
+        # RE-RETRIEVE knowledge using the Storyboard to catch technical keywords (e.g. "graph", "3d")
+        # that might have been in the generated plan but not the initial simple prompt.
+        code_knowledge = retrieve_relevant_knowledge(storyboard_resp + "\n" + prompt, max_sections=8)
+        print(f"DEBUG: Retrieved code context: {len(code_knowledge)} chars")
+        
+        code_resp = self.generate_code(prompt, storyboard_resp, script, code_knowledge, api_key)
         
         # Extract code content
         code_match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", code_resp, re.DOTALL | re.IGNORECASE)
