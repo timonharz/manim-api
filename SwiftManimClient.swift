@@ -121,7 +121,7 @@ public actor ManimClient {
         }
 
         let health = try JSONDecoder().decode(ServerHealth.self, from: data)
-        return health.status == "healthy"
+        return health.status.starts(with: "ALIVE")
     }
 
     /// Renders a Manim animation from code and returns the video data.
