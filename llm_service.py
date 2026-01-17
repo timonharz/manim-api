@@ -180,6 +180,34 @@ SCRIPT:
         # 4. Fix Unicode
         code = code.replace('–', '-').replace('—', '-')
         
+        # 5. Fix undefined color constants
+        color_fixes = {
+            'LIGHT_GRAY': 'GREY_B',
+            'LIGHT_GREY': 'GREY_B', 
+            'DARK_GRAY': 'GREY_D',
+            'DARK_GREY': 'GREY_D',
+            'LIGHT_BROWN': 'GOLD_E',
+            'DARK_BROWN': 'GOLD_E',
+            'LIGHT_PINK': 'PINK',
+            'DARK_PINK': 'MAROON_C',
+            'LIGHT_BLUE': 'BLUE_B',
+            'DARK_BLUE': 'BLUE_E',
+            'LIGHT_GREEN': 'GREEN_B',
+            'DARK_GREEN': 'GREEN_E',
+            'LIGHT_RED': 'RED_B',
+            'DARK_RED': 'RED_E',
+            'LIGHT_YELLOW': 'YELLOW_B',
+            'DARK_YELLOW': 'YELLOW_E',
+            'LIGHT_PURPLE': 'PURPLE_B',
+            'DARK_PURPLE': 'PURPLE_E',
+            'LIGHT_ORANGE': 'ORANGE',
+            'DARK_ORANGE': 'GOLD_E',
+            'CYAN': 'TEAL',
+            'MAGENTA': 'PINK',
+        }
+        for wrong_color, correct_color in color_fixes.items():
+            code = re.sub(rf'\b{wrong_color}\b', correct_color, code)
+        
         # 5. LaTeX Sanitization
         if r"\text{" in code:
             code = re.sub(r'\\text\{([^}]+)\}', r'\\mathrm{\1}', code)
@@ -201,7 +229,7 @@ class GeneratedScene(Scene):
 
     def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
         """
-        Orchestrates the 3-step generation pipeline.
+        Orchestrates the 3-step generation pipeline with validation and retry.
         """
         if not api_key:
             api_key = self.default_api_key
@@ -223,35 +251,72 @@ class GeneratedScene(Scene):
         
         # Extract script content
         import re
+        import ast
         script_match = re.search(r"\[\s*SCRIPT\s*\](.*?)\[\s*/SCRIPT\s*\]", script_resp, re.DOTALL | re.IGNORECASE)
         script = script_match.group(1).strip() if script_match else script_resp
         print(f"DEBUG: Script generated (len={len(script)})")
 
-        # 3. Code
+        # 3. Code Generation with Retry Loop
         print("DEBUG: Generating Code...")
         # RE-RETRIEVE knowledge using the Storyboard
         code_knowledge = retrieve_relevant_knowledge(storyboard_resp + "\n" + prompt, max_sections=8)
         print(f"DEBUG: Retrieved code context: {len(code_knowledge)} chars")
         
-        code_resp = self.generate_code(prompt, storyboard_resp, script, code_knowledge, api_key)
-        print(f"DEBUG: Raw LLM Code Response (first 500 chars):\n{code_resp[:500]}...")
+        max_code_attempts = 3
+        last_code_error = None
+        code = None
         
-        # --- Extraction & Processing ---
-        code = self._extract_code(code_resp)
-        code = self._post_process_code(code)
+        for attempt in range(max_code_attempts):
+            try:
+                # Build the effective prompt for this attempt
+                effective_prompt = prompt
+                if attempt > 0 and last_code_error:
+                    print(f"DEBUG: Code attempt {attempt + 1}/{max_code_attempts} - retrying due to: {last_code_error}")
+                    effective_prompt = f"""CRITICAL: Your previous code generation was CORRUPTED and INVALID.
+
+ERROR: {last_code_error}
+
+You MUST generate VALID Python code that compiles without errors.
+Fix the syntax issues and generate working code.
+
+Original request: {prompt}"""
+                
+                code_resp = self.generate_code(effective_prompt, storyboard_resp, script, code_knowledge, api_key)
+                print(f"DEBUG: Raw LLM Code Response (first 500 chars):\n{code_resp[:500]}...")
+                
+                # --- Extraction & Processing ---
+                code = self._extract_code(code_resp)
+                code = self._post_process_code(code)
+                
+                print(f"DEBUG: Code generated (len={len(code)})")
+                
+                # --- Validation ---
+                # Check for illegal imports
+                illegal_imports = ['from manim import', 'import manim', 'from manif', 'import manif']
+                for bad_import in illegal_imports:
+                    if bad_import in code:
+                        raise ValueError(f"Code contains illegal import '{bad_import}'. Must use 'from manimlib import *'")
+                
+                # AST syntax check
+                ast.parse(code)
+                print(f"DEBUG: Code passed AST validation on attempt {attempt + 1}")
+                
+                # Success - break out of retry loop
+                break
+                
+            except (SyntaxError, ValueError) as e:
+                last_code_error = str(e)
+                print(f"DEBUG: Code validation FAILED on attempt {attempt + 1}: {e}")
+                
+                if attempt == max_code_attempts - 1:
+                    # Final attempt failed, raise the error
+                    raise ValueError(f"Code generation failed after {max_code_attempts} attempts. Last error: {last_code_error}")
+                
+                # Continue to next attempt
+                continue
         
-        print(f"DEBUG: Code generated (len={len(code)})")
-        
-        # --- Final Validation ---
-        import ast
-        try:
-            ast.parse(code)
-            print("DEBUG: Generated code passed AST syntax check.")
-        except SyntaxError as e:
-            print(f"DEBUG: Generated code FAILED AST check: {e}")
-            # We don't raise here, we attempt to return what we have, 
-            # maybe the user can debug it or the renderer catches it with a better error.
-            # But logging it is crucial.
+        if code is None:
+            raise ValueError("Code generation failed - no valid code produced")
             
         return code.strip(), script
 
