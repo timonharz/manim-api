@@ -134,7 +134,9 @@ def render_code(
         
         cmd = [sys.executable, str(runner_script), str(config_path)]
         if sys.platform != "darwin":
-             cmd = ["xvfb-run", "-s", "-screen 0 1280x720x24"] + cmd
+            # Use -a for auto-display selection to avoid conflicts
+            # Use proper server args format
+            cmd = ["xvfb-run", "-a", "--server-args=-screen 0 1280x720x24 -ac"] + cmd
 
         process = subprocess.run(
             cmd,

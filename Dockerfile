@@ -33,6 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libpango1.0-0 \
     libx11-6 \
+    libxrender1 \
+    libxext6 \
     xvfb \
     libegl1-mesa \
     libglib2.0-0 \
