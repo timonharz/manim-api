@@ -57,7 +57,7 @@ Include pauses by writing "..." where appropriate.)
 [CODE]
 (Python code using manimlib. Create complex, engaging animations.
 Break the animation into logical sections with methods if the topic is complex.
-Use Tex/MathTex for mathematical explanations on screen.
+Use Tex for mathematical explanations on screen. Note that in manimlib, Tex handles math by default (it uses the align* environment).
 Match animation timing to the narration script using self.wait() calls.)
 [/CODE]
 
@@ -89,9 +89,10 @@ Match animation timing to the narration script using self.wait() calls.)
 - NEVER use `always_redraw(...)`. It DOES NOT EXIST in manimlib. Instead, use `mobject.add_updater(lambda m: m.become(...))` or `f_always(m.move_to, dot)`.
 - NEVER use `ValueTracker().animate.set_value(...)`. Instead, use `tracker.animate.set_value(...)` (without the .animate if manimlib version is older, but usually tracker.animate works in manimgl).
 - NEVER use `self.set_camera_orientation()`. Instead use `self.frame.set_euler_angles()`.
+- NEVER use `MathTex`. It DOES NOT EXIST in manimlib. USE `Tex` instead, which handles math by default.
 - Use `ShowCreation` for shapes, not `Create`.
 - Use `Write` for Tex, not `AddTextWordByWord` (unless specifically asked for typing effect).
-- Use `MathTex` or `Tex` for all mathematical formulas.
+- Use `Tex` for all mathematical formulas.
 """
 
         completion = client.chat.completions.create(
