@@ -113,6 +113,7 @@ class GenerateRequest(BaseModel):
 
 @app.post("/generate", response_class=FileResponse)
 async def generate_video_endpoint(request: GenerateRequest, background_tasks: BackgroundTasks):
+    print(f"DEBUG: Generate endpoint received request for prompt: {request.prompt[:50]}...")
     async with get_render_semaphore():
         result = await run_in_threadpool(
             video_gen_service.generate_video,

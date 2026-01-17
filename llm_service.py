@@ -19,188 +19,163 @@ class LLMService:
     def __init__(self):
         self.default_api_key = os.getenv("GROQ_API_KEY")
 
-    def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
-        """
-        Generate Manim animation code and narration script from a prompt.
-        
-        Uses RAG to retrieve relevant manimlib documentation based on the prompt,
-        then generates code that uses appropriate classes and methods.
-        
-        Args:
-            prompt: User's animation request
-            api_key: Groq API key (required)
-            
-        Returns:
-            Tuple of (code, script) where code is the Python/Manim code
-            and script is the narration text.
-        """
-        if not api_key:
-            raise ValueError("Groq API key is required.")
-            
+    def _call_llm(self, messages: list, api_key: str) -> str:
+        """Helper to call the Groq API."""
         client = Groq(api_key=api_key)
+        print(f"DEBUG: Calling LLM with system prompt: {messages[0]['content'][:50]}...")
+        completion = client.chat.completions.create(
+            messages=messages,
+            model="openai/gpt-oss-120b",
+            temperature=0.7,
+            max_completion_tokens=4096 
+        )
+        return completion.choices[0].message.content
 
-        # RAG: Retrieve relevant manimlib knowledge based on prompt
-        retrieved_knowledge = retrieve_relevant_knowledge(prompt, max_sections=6)
-
-        system_prompt = f"""You are an expert Manim animation developer. Generate Python code using `manimlib` (ManimGL) and a detailed narration script.
-
-## RELEVANT MANIMLIB DOCUMENTATION FOR THIS REQUEST:
-{retrieved_knowledge}
+    def generate_storyboard(self, prompt: str, knowledge: str, api_key: str) -> str:
+        """Step 1: Generate a visual storyboard."""
+        system_prompt = f"""You are an expert director for educational math videos. Create a detailed storyboard.
+        
+## RELEVANT KNOWLEDGE:
+{knowledge}
 
 ## OUTPUT FORMAT:
-[SCRIPT]
-(A detailed, multi-paragraph narration script that explains the concept step-by-step.
-This will be converted to audio, so write naturally as if speaking to a student.
-Include pauses by writing "..." where appropriate.)
-[/SCRIPT]
+[STORYBOARD]
+1. [0:00-0:10] Intro: ... (Visuals: ...)
+2. [0:10-0:30] Concept: ... (Visuals: ...)
+...
+[/STORYBOARD]
+"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Create a storyboard for: {prompt}"}
+        ]
+        return self._call_llm(messages, api_key)
 
+    def generate_script(self, storyboard: str, api_key: str) -> str:
+        """Step 2: Generate narration script from storyboard."""
+        system_prompt = """You are an expert science communicator. Write a narration script matching the storyboard.
+        
+## OUTPUT FORMAT:
+[SCRIPT]
+(Write the full narration here. Use "..." for pauses. Be engaging and clear.)
+[/SCRIPT]
+"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Write a script for this storyboard:\n{storyboard}"}
+        ]
+        return self._call_llm(messages, api_key)
+
+    def generate_code(self, prompt: str, storyboard: str, script: str, knowledge: str, api_key: str) -> str:
+        """Step 3: Generate Manim code from storyboard and script."""
+        system_prompt = f"""You are an expert Manim animation developer. Generate Python code using `manimlib` (ManimGL).
+
+## CONTEXT:
+STORYBOARD:
+{storyboard}
+
+SCRIPT:
+{script}
+
+## RELEVANT DOCUMENTATION:
+{knowledge}
+
+## OUTPUT FORMAT:
 [CODE]
-(Python code using manimlib. Create complex, engaging animations.
-Break the animation into logical sections with methods if the topic is complex.
-Use Tex for mathematical explanations on screen. Note that in manimlib, Tex handles math by default (it uses the align* environment).
-Match animation timing to the narration script using self.wait() calls.)
+(Python code only)
 [/CODE]
 
 ## CRITICAL RULES (VIOLATION = SYSTEM CRASH):
 1. Use ONLY `from manimlib import *` as the FIRST import line.
-2. NEVER use `import manim`, `from manim import ...`, `import manif`, or `from manif import ...`.
-3. You may define multiple Scene classes. They will be rendered sequentially and stitched together. This is useful for breaking down complex topics.
-4. Include `self.add_sound("narration.mp3")` at the START of the `construct` method.
-5. Use standard color constants (RED, BLUE, GREEN, YELLOW, WHITE, etc.) or HEX codes like "#FF5733".
-6. Use `Write()` for Tex/Text objects, `ShowCreation()` for shapes/lines.
-7. Use `VGroup()` to group related objects and animate them together.
-8. Add explanatory labels with Tex() positioned using `.next_to()` or `.to_edge()`.
-9. Use `self.wait()` between major animation steps for proper pacing with narration.
-10. For complex topics, break the animation into sections using helper methods.
-11. FOR 3D SCENES: Inherit from `ThreeDScene`, NOT `Scene`. Example: `class My3DScene(ThreeDScene):`
-12. FOR 3D CAMERA: Use `self.frame.set_euler_angles(theta=X, phi=Y)` to set camera angles. 
-    NEVER use `set_camera_orientation()` - IT DOES NOT EXIST in manimgl!
-13. FOR 3D TEXT OVERLAYS: Use `.fix_in_frame()` on Text/Tex that should stay fixed on screen.
-
-## STYLE GUIDELINES:
-- Create visually engaging animations with smooth transitions
-- Use colors strategically to highlight important elements
-- Add mathematical notation on screen to reinforce spoken explanations
-- Build complexity gradually - introduce elements one at a time
-- Use FadeIn/FadeOut for smooth scene transitions
-- In 3D scenes, use `.fix_in_frame()` for titles/labels that shouldn't rotate with camera
-
-## COMMON MISTAKES TO AVOID (VERY IMPORTANT):
-- NEVER use `always_redraw(...)`. It DOES NOT EXIST in manimlib. Instead, use `mobject.add_updater(lambda m: m.become(...))` or `f_always(m.move_to, dot)`.
-- NEVER use `ValueTracker().animate.set_value(...)`. Instead, use `tracker.animate.set_value(...)` (without the .animate if manimlib version is older, but usually tracker.animate works in manimgl).
-- NEVER use `self.set_camera_orientation()`. Instead use `self.frame.set_euler_angles()`.
-- NEVER use `MathTex`. It DOES NOT EXIST in manimlib. USE `Tex` instead, which handles math by default.
-- Use `ShowCreation` for shapes, not `Create`.
-- Use `Write` for Tex, not `AddTextWordByWord` (unless specifically asked for typing effect).
-- Use `Tex` for all mathematical formulas.
+2. NEVER use `import manim` or `from manim import ...`.
+3. Include `self.add_sound("narration.mp3")` at the start of `construct`.
+4. Use `self.wait()` to sync with the script timing.
+5. PREFER `Text("String")` over `Tex(r"\\text{{String}}")`.
+6. Use `self.frame.set_euler_angles()` for 3D camera.
+7. Use `ShowCreation` (not Create), `Tex` (not MathTex).
 """
-
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Generate Manim code for: {prompt}"}
+        ]
+        client = Groq(api_key=api_key)
+        # Use larger token limit for code
         completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             model="openai/gpt-oss-120b",
             temperature=0.7,
-            max_completion_tokens=16384  # Increased to handle complex topics
+            max_completion_tokens=16384
         )
+        return completion.choices[0].message.content
 
-        content = completion.choices[0].message.content
+    def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
+        """
+        Orchestrates the 3-step generation pipeline.
+        """
+        if not api_key:
+            raise ValueError("Groq API key is required.")
 
-        # Robust regex-based parsing
+        # 0. Retrieve Knowledge
+        knowledge = retrieve_relevant_knowledge(prompt, max_sections=6)
+
+        # 1. Storyboard
+        print("DEBUG: Generating Storyboard...")
+        storyboard_resp = self.generate_storyboard(prompt, knowledge, api_key)
+        print(f"DEBUG: Storyboard generated (len={len(storyboard_resp)})")
+
+        # 2. Script
+        print("DEBUG: Generating Script...")
+        script_resp = self.generate_script(storyboard_resp, api_key)
+        
+        # Extract script content
         import re
+        script_match = re.search(r"\[\s*SCRIPT\s*\](.*?)\[\s*/SCRIPT\s*\]", script_resp, re.DOTALL | re.IGNORECASE)
+        script = script_match.group(1).strip() if script_match else script_resp
+        print(f"DEBUG: Script generated (len={len(script)})")
+
+        # 3. Code
+        print("DEBUG: Generating Code...")
+        code_resp = self.generate_code(prompt, storyboard_resp, script, knowledge, api_key)
         
-        # Step 1: Strip common markdown formatting around tags
-        # Handle bold/italic markers
-        for marker in ['**', '*', '`']:
-            content = content.replace(f"{marker}[SCRIPT]{marker}", "[SCRIPT]")
-            content = content.replace(f"{marker}[/SCRIPT]{marker}", "[/SCRIPT]")
-            content = content.replace(f"{marker}[CODE]{marker}", "[CODE]")
-            content = content.replace(f"{marker}[/CODE]{marker}", "[/CODE]")
+        # Extract code content
+        code_match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", code_resp, re.DOTALL | re.IGNORECASE)
+        if not code_match:
+             code_match = re.search(r"```python(.*?)```", code_resp, re.DOTALL)
         
-        # Step 2: More flexible regex that allows whitespace around tags
-        script_match = re.search(r"\[\s*SCRIPT\s*\](.*?)\[\s*/SCRIPT\s*\]", content, re.DOTALL | re.IGNORECASE)
-        code_match = re.search(r"\[\s*CODE\s*\](.*?)\[\s*/CODE\s*\]", content, re.DOTALL | re.IGNORECASE)
-
-        if not script_match or not code_match:
-            # Fallback: check for markdown code blocks if [CODE] is missing
-            if not code_match:
-                code_match = re.search(r"```python(.*?)```", content, re.DOTALL)
-            
-            # Fallback: Handle unclosed tags by inferring section boundaries
-            if not script_match:
-                # Try to extract SCRIPT content from open tag to CODE tag or end
-                script_open_match = re.search(r"\[\s*SCRIPT\s*\]", content, re.IGNORECASE)
-                if script_open_match:
-                    start_pos = script_open_match.end()
-                    # Find where CODE section starts, or use end of content
-                    code_open_match = re.search(r"\[\s*CODE\s*\]", content, re.IGNORECASE)
-                    end_pos = code_open_match.start() if code_open_match else len(content)
-                    script_text = content[start_pos:end_pos].strip()
-                    if script_text:
-                        script_match = type('Match', (), {'group': lambda self, n: script_text})()
-            
-            if not code_match:
-                # Try to extract CODE content from open tag to end
-                code_open_match = re.search(r"\[\s*CODE\s*\]", content, re.IGNORECASE)
-                if code_open_match:
-                    start_pos = code_open_match.end()
-                    code_text = content[start_pos:].strip()
-                    # Clean up any trailing markdown
-                    code_text = re.sub(r"```\s*$", "", code_text).strip()
-                    if code_text:
-                        code_match = type('Match', (), {'group': lambda self, n: code_text})()
-            
-            if not script_match or not code_match:
-                # Debug: Show what we found
-                has_script_open = "[SCRIPT]" in content.upper() or "[ SCRIPT ]" in content.upper()
-                has_script_close = "[/SCRIPT]" in content.upper() or "[ /SCRIPT ]" in content.upper()
-                has_code_open = "[CODE]" in content.upper() or "[ CODE ]" in content.upper()
-                has_code_close = "[/CODE]" in content.upper() or "[ /CODE ]" in content.upper()
-                
-                debug_info = f"Tags found: SCRIPT open={has_script_open}, close={has_script_close}, CODE open={has_code_open}, close={has_code_close}"
-                raise ValueError(f"Failed to parse LLM response. {debug_info}\n\nRaw response (first 1000 chars):\n{content[:1000]}...")
-
-        script = script_match.group(1).strip()
-        code = code_match.group(1).strip()
-
-        # Clean up code block markers if accidentally included inside [CODE]
+        code = code_match.group(1).strip() if code_match else code_resp
+        
+        # --- POST PROCESSING & SANITIZATION ---
+        
+        # Clean up code block markers
         if code.startswith("```"):
-            lines = code.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            code = "\n".join(lines).strip()
-        
-        # Sanitize code: Replace problematic unicode characters with ASCII equivalents
-        # Replace en-dash (U+2013) and em-dash (U+2014) with hyphen
-        code = code.replace('–', '-').replace('—', '-')
-        # Replace smart quotes with regular quotes
-        code = code.replace('"', '"').replace('"', '"')
-        code = code.replace(''', "'").replace(''', "'")
-        
-        # Fix hallucinated patterns that don't exist in manimlib
-        # Fix always_redraw() - convert to updater pattern
-        # Pattern: var = always_redraw(func) -> var = func(); var.add_updater(lambda m: m.become(func()))
+            code = code.strip("`").strip()
+            if code.startswith("python"): code = code[6:].strip()
+
+        # Fix imports
+        if "from manimlib import" not in code:
+            code = "from manimlib import *\n\n" + code
+
+        # Fix always_redraw
         always_redraw_pattern = re.compile(r'(\w+)\s*=\s*always_redraw\s*\(\s*(\w+)\s*\)')
         if always_redraw_pattern.search(code):
-            # Replace always_redraw with updater pattern
-            def fix_always_redraw(match):
+             def fix_always_redraw(match):
                 var_name = match.group(1)
                 func_name = match.group(2)
                 return f'{var_name} = {func_name}()\n        {var_name}.add_updater(lambda m: m.become({func_name}()))'
-            code = always_redraw_pattern.sub(fix_always_redraw, code)
-        
-        # Fix MathTex -> Tex (MathTex doesn't exist in manimlib)
+             code = always_redraw_pattern.sub(fix_always_redraw, code)
+
+        # Fix common hallucinations
         code = re.sub(r'\bMathTex\b', 'Tex', code)
-        
-        # Fix Create -> ShowCreation
         code = re.sub(r'\bCreate\b(?!\w)', 'ShowCreation', code)
         
-        # Validate the code has required import
-        if "from manimlib import" not in code:
-            code = "from manimlib import *\n\n" + code
-            
+        # Fix Unicode
+        code = code.replace('–', '-').replace('—', '-')
+        
+        # Final Sanitization: \text{...} -> \mathrm{...}
+        if r"\text{" in code:
+            print("DEBUG: Sanitizing LaTeX \\text{ usages...")
+            code = re.sub(r'\\text\{([^}]+)\}', r'\\mathrm{\1}', code)
+
+        print(f"DEBUG: Code generated (len={len(code)})")
         return code.strip(), script
 

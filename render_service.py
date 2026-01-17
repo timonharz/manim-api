@@ -63,6 +63,7 @@ def render_code(
     """
     Render Manim code via a subprocess for memory isolation.
     """
+    print(f"DEBUG: render_code started for format {format} quality {quality}")
     import json
     import subprocess
     
@@ -138,12 +139,14 @@ def render_code(
             # Use proper server args format
             cmd = ["xvfb-run", "-a", "--server-args=-screen 0 1280x720x24 -ac"] + cmd
 
+        print(f"DEBUG: Starting subprocess: {cmd}")
         process = subprocess.run(
             cmd,
             cwd=temp_dir,
             capture_output=True,
             text=True
         )
+        print(f"DEBUG: Subprocess finished. Return code: {process.returncode}")
         
         if process.returncode != 0:
             raise RuntimeError(f"Rendering Process Error (Exit {process.returncode}):\n{process.stderr}\n{process.stdout}")
@@ -213,17 +216,23 @@ class VideoGenerationService:
                 if attempt > 0 and last_error:
                     eff_prompt = f"{prompt}\n\nFIX THIS ERROR: {last_error}. Strictly use manimlib."
                 
+                print("DEBUG: Calling LLM...")
                 code, script = self.llm.generate_manim_content(eff_prompt, api_key=api_key)
+                print("DEBUG: LLM returned.")
                 
                 # Audio path
                 temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
                 os.close(temp_fd)
                 temp_audio_path = Path(temp_path_str)
+                print("DEBUG: Generating TTS...")
                 self.tts.generate_audio(script, temp_audio_path)
+                print("DEBUG: TTS generated.")
                 
                 # Render
                 assets = {"narration.mp3": temp_audio_path.read_bytes()}
+                print("DEBUG: Calling render_code...")
                 result = render_code(code, quality=quality, format=format, assets=assets)
+                print(f"DEBUG: render_code returned. Success: {result.success}")
                 
                 if result.success:
                     return result
