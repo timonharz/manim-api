@@ -46,7 +46,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-fonts-extra \
     texlive-humanities \
     texlive-science \
+    texlive-pictures \
+    texlive-pstricks \
+    texlive-plain-generic \
+    texlive-luatex \
     tipa \
+    cm-super \
     dvipng \
     dvisvgm \
     xauth \
