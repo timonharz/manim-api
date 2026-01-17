@@ -25,7 +25,7 @@ class LLMService:
         print(f"DEBUG: Calling LLM with system prompt: {messages[0]['content'][:50]}...")
         completion = client.chat.completions.create(
             messages=messages,
-            model="openai/gpt-oss-120b",
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
             max_completion_tokens=4096 
         )
@@ -105,11 +105,46 @@ SCRIPT:
         # Use larger token limit for code
         completion = client.chat.completions.create(
             messages=messages,
-            model="openai/gpt-oss-120b",
-            temperature=0.7,
-            max_completion_tokens=16384
+            model="llama-3.3-70b-versatile",
+            temperature=0.5,  # Lower temperature for more coherent code
+            max_completion_tokens=8192
         )
         return completion.choices[0].message.content
+    
+    def _is_code_scrambled(self, code: str) -> bool:
+        """
+        Detect if code has been scrambled/interleaved by the LLM.
+        Scrambled code has imports appearing in the middle, or class definitions after method bodies.
+        """
+        lines = code.strip().split('\n')
+        
+        # Check 1: 'from manimlib import' should be in the first 5 lines
+        import_found_early = False
+        for i, line in enumerate(lines[:5]):
+            if 'from manimlib import' in line or 'import manimlib' in line:
+                import_found_early = True
+                break
+        
+        # Check if import appears LATER than line 5 (indicates scrambling)
+        for i, line in enumerate(lines[5:], start=5):
+            if 'from manimlib import' in line:
+                print(f"DEBUG: Scrambled code detected - import on line {i+1}")
+                return True
+        
+        # Check 2: class definition should come before method code
+        class_line = -1
+        first_self_line = -1
+        for i, line in enumerate(lines):
+            if 'class ' in line and 'Scene' in line:
+                class_line = i
+            if 'self.' in line and first_self_line == -1:
+                first_self_line = i
+        
+        if first_self_line != -1 and class_line != -1 and first_self_line < class_line:
+            print(f"DEBUG: Scrambled code detected - self. on line {first_self_line+1} before class on line {class_line+1}")
+            return True
+        
+        return False
 
     def _extract_code(self, response: str) -> str:
         """Extracts and dedents code from LLM response."""
@@ -293,6 +328,10 @@ Original request: {prompt}"""
                 print(f"DEBUG: Code generated (len={len(code)})")
                 
                 # --- Validation ---
+                # Check for scrambled/interleaved code (LLM corruption)
+                if self._is_code_scrambled(code):
+                    raise ValueError("Code appears to be scrambled/interleaved - LLM produced corrupted output")
+                
                 # Check for illegal imports
                 illegal_imports = ['from manim import', 'import manim', 'from manif', 'import manif']
                 for bad_import in illegal_imports:
