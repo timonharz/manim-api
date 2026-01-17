@@ -102,7 +102,7 @@ Match animation timing to the narration script using self.wait() calls.)
             ],
             model="openai/gpt-oss-120b",
             temperature=0.7,
-            max_completion_tokens=8192
+            max_completion_tokens=16384  # Increased to handle complex topics
         )
 
         content = completion.choices[0].message.content
@@ -126,6 +126,30 @@ Match animation timing to the narration script using self.wait() calls.)
             # Fallback: check for markdown code blocks if [CODE] is missing
             if not code_match:
                 code_match = re.search(r"```python(.*?)```", content, re.DOTALL)
+            
+            # Fallback: Handle unclosed tags by inferring section boundaries
+            if not script_match:
+                # Try to extract SCRIPT content from open tag to CODE tag or end
+                script_open_match = re.search(r"\[\s*SCRIPT\s*\]", content, re.IGNORECASE)
+                if script_open_match:
+                    start_pos = script_open_match.end()
+                    # Find where CODE section starts, or use end of content
+                    code_open_match = re.search(r"\[\s*CODE\s*\]", content, re.IGNORECASE)
+                    end_pos = code_open_match.start() if code_open_match else len(content)
+                    script_text = content[start_pos:end_pos].strip()
+                    if script_text:
+                        script_match = type('Match', (), {'group': lambda self, n: script_text})()
+            
+            if not code_match:
+                # Try to extract CODE content from open tag to end
+                code_open_match = re.search(r"\[\s*CODE\s*\]", content, re.IGNORECASE)
+                if code_open_match:
+                    start_pos = code_open_match.end()
+                    code_text = content[start_pos:].strip()
+                    # Clean up any trailing markdown
+                    code_text = re.sub(r"```\s*$", "", code_text).strip()
+                    if code_text:
+                        code_match = type('Match', (), {'group': lambda self, n: code_text})()
             
             if not script_match or not code_match:
                 # Debug: Show what we found
