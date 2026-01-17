@@ -180,6 +180,24 @@ Match animation timing to the narration script using self.wait() calls.)
         code = code.replace('"', '"').replace('"', '"')
         code = code.replace(''', "'").replace(''', "'")
         
+        # Fix hallucinated patterns that don't exist in manimlib
+        # Fix always_redraw() - convert to updater pattern
+        # Pattern: var = always_redraw(func) -> var = func(); var.add_updater(lambda m: m.become(func()))
+        always_redraw_pattern = re.compile(r'(\w+)\s*=\s*always_redraw\s*\(\s*(\w+)\s*\)')
+        if always_redraw_pattern.search(code):
+            # Replace always_redraw with updater pattern
+            def fix_always_redraw(match):
+                var_name = match.group(1)
+                func_name = match.group(2)
+                return f'{var_name} = {func_name}()\n        {var_name}.add_updater(lambda m: m.become({func_name}()))'
+            code = always_redraw_pattern.sub(fix_always_redraw, code)
+        
+        # Fix MathTex -> Tex (MathTex doesn't exist in manimlib)
+        code = re.sub(r'\bMathTex\b', 'Tex', code)
+        
+        # Fix Create -> ShowCreation
+        code = re.sub(r'\bCreate\b(?!\w)', 'ShowCreation', code)
+        
         # Validate the code has required import
         if "from manimlib import" not in code:
             code = "from manimlib import *\n\n" + code
