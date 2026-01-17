@@ -233,6 +233,8 @@ class VideoGenerationService:
                 print("DEBUG: Calling render_code...")
                 result = render_code(code, quality=quality, format=format, assets=assets)
                 print(f"DEBUG: render_code returned. Success: {result.success}")
+                if not result.success:
+                    print(f"DEBUG: render_code failed with error: {result.error}")
                 
                 if result.success:
                     return result

@@ -217,6 +217,81 @@ mob.add_updater(lambda m, dt: m.rotate(dt * PI))
 # Stop
 mob.clear_updaters()
 ```
+""",
+
+    "vgroup": """
+## Grouping (VGroup)
+Use `VGroup` to bundle mobjects.
+```python
+# Create and styling
+circle = Circle()
+square = Square()
+group = VGroup(circle, square).set_color(RED)
+
+# Arrange automatically
+group.arrange(RIGHT, buff=1.0)
+
+# Add to scene
+self.play(ShowCreation(group))
+```
+""",
+
+    "mobject_methods": """
+## Common Mobject Methods
+```python
+obj.shift(UP * 2 + RIGHT)
+obj.scale(2.0)
+obj.rotate(45 * DEGREES)
+obj.set_color(RED)
+obj.set_opacity(0.5)
+
+# Relative positioning
+obj.next_to(other_obj, DOWN, buff=0.5)
+obj.move_to(other_obj.get_center())
+obj.align_to(other_obj, UP)
+```
+""",
+
+    "constants_colors": """
+## Constants & Colors
+### Colors
+`BLUE`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `PINK`, `ORANGE`, `GREY`, `WHITE`, `BLACK`
+Variations: `BLUE_A` (light) to `BLUE_E` (dark).
+
+### Math Constants
+`PI`, `TAU`, `DEGREES` (use `90 * DEGREES`)
+`UP`, `DOWN`, `LEFT`, `RIGHT`, `UL`, `UR`, `DL`, `DR`, `ORIGIN`
+""",
+
+    "animations_composition": """
+## Composing Animations
+```python
+# Lagged Start
+self.play(
+    AnimationGroup(
+        *[ShowCreation(mob) for mob in mobjects],
+        lag_ratio=0.1
+    )
+)
+
+# Sequential
+self.play(
+    Succession(
+        Write(text),
+        FadeOut(text),
+        ShowCreation(new_obj)
+    )
+)
+```
+""",
+
+    "rate_functions": """
+## Rate Functions (Easing)
+Control animation speed.
+`linear`, `smooth` (default), `there_and_back`, `rush_into`, `rush_from`, `slow_into`
+```python
+self.play(MoveToTarget(obj), rate_func=linear)
+```
 """
 }
 
@@ -253,6 +328,11 @@ KEYWORD_MAPPINGS: Dict[str, List[str]] = {
     "curve": ["coordinate_systems"],
 
     # 3D
+    "3d": ["3d_scenes"],
+    "three dimensions": ["3d_scenes"],
+    "camera": ["3d_scenes"],
+    
+    # Composition
     "together": ["animations_composition"],
     
     # General
@@ -316,7 +396,7 @@ def retrieve_relevant_knowledge(prompt: str, max_sections: int = 6) -> str:
                 section_scores[section] = section_scores.get(section, 0) + 1
     
     # Always include these baseline sections
-    baseline_sections = ["scene_methods", "constants_colors", "mobject_methods"]
+    baseline_sections = ["scene_methods", "constants_colors", "mobject_methods", "vgroup"]
     for section in baseline_sections:
         section_scores[section] = section_scores.get(section, 0) + 0.5
     
@@ -370,56 +450,4 @@ if __name__ == "__main__":
         print(f"Retrieved knowledge ({len(knowledge)} chars):")
         print(knowledge[:500] + "..." if len(knowledge) > 500 else knowledge)
 
-# =============================================================================
-# RETRIEVAL LOGIC
-# =============================================================================
 
-def retrieve_relevant_knowledge(query: str, max_sections: int = 5) -> str:
-    """
-    Retrieves relevant sections from the knowledge base based on keyword matching.
-    
-    Args:
-        query (str): The input prompt or text to search for keywords in.
-        max_sections (int): Maximum number of sections to return.
-        
-    Returns:
-        str: A formatted string containing the relevant documentation sections.
-    """
-    query_lower = query.lower()
-    relevant_keys: Set[str] = set()
-    
-    # 1. Direct Keyword Matching
-    for keyword, sections in KEYWORD_MAPPINGS.items():
-        if keyword in query_lower:
-            for section in sections:
-                relevant_keys.add(section)
-                
-    # 2. Add "must-have" sections for all queries (basic animation & geometry)
-    relevant_keys.add("animations_basic")
-    
-    # 3. If query mentions "graph", "plot", or "axis", ensure coordinate systems
-    if any(k in query_lower for k in ["graph", "plot", "axis", "axes", "function"]):
-        relevant_keys.add("coordinate_systems")
-        relevant_keys.add("geometry_lines")
-
-    # 4. If query mentions "3d", ensure 3d setup
-    if "3d" in query_lower or "three dimensions" in query_lower:
-        relevant_keys.add("3d_scenes")
-        relevant_keys.add("3d_objects")
-
-    # 5. Sort and limit
-    # Priority: Coordinate systems and 3D scenes are clearer if they appear first
-    sorted_keys = sorted(list(relevant_keys))
-    selected_keys = sorted_keys[:max_sections]
-    
-    if not selected_keys:
-        # Fallback if no keywords matched
-        selected_keys = ["geometry_basic", "animations_basic", "text_latex"]
-        
-    # 6. Construct Output
-    knowledge_text = ""
-    for key in selected_keys:
-        if key in KNOWLEDGE_SECTIONS:
-            knowledge_text += KNOWLEDGE_SECTIONS[key] + "\n"
-            
-    return knowledge_text
