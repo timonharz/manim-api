@@ -659,7 +659,7 @@ class NumberPlane(Axes):
 
     def init_background_lines(self) -> None:
         if "stroke_color" not in self.faded_line_style:
-            self.faded_line_style["stroke_color"] = self.background_line_style["stroke_color"]
+            self.faded_line_style["stroke_color"] = self.background_line_style.get("stroke_color", BLUE_D)
 
         self.background_lines, self.faded_lines = self.get_lines()
         self.background_lines.set_style(**self.background_line_style)
