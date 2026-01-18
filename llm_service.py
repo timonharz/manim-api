@@ -1,6 +1,6 @@
 import os
 from typing import Tuple
-import requests
+from groq import Groq
 from dotenv import load_dotenv
 
 from manim_knowledge_base import retrieve_relevant_knowledge
@@ -17,32 +17,21 @@ class LLMService:
     """
     
     def __init__(self):
-        self.default_api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("GROQ_API_KEY")
-        self.model = "openai/gpt-oss-120b"  # GPT-oss-120b for reliable code generation
-        self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+        self.default_api_key = os.getenv("GROQ_API_KEY")
+        self.model = "openai/gpt-oss-120b"
 
     def _call_llm(self, messages: list, api_key: str, max_tokens: int = 4096) -> str:
-        """Helper to call the OpenRouter API."""
+        """Helper to call the Groq API."""
         print(f"DEBUG: Calling LLM with system prompt: {messages[0]['content'][:50]}...")
         
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://manim-api.app",
-        }
-        
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0.3,  # Lower temperature for more consistent code
-            "max_tokens": max_tokens,
-        }
-        
-        response = requests.post(self.base_url, headers=headers, json=payload, timeout=120)
-        response.raise_for_status()
-        
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
+        client = Groq(api_key=api_key)
+        completion = client.chat.completions.create(
+            messages=messages,
+            model=self.model,
+            temperature=0.3,  # Lower temperature for more consistent code
+            max_completion_tokens=max_tokens,
+        )
+        return completion.choices[0].message.content
 
     def generate_storyboard(self, prompt: str, knowledge: str, api_key: str) -> str:
         """Step 1: Generate a visual storyboard."""
@@ -299,7 +288,7 @@ class GeneratedScene(Scene):
             api_key = self.default_api_key
             
         if not api_key:
-            raise ValueError("OpenRouter API key is required. Set OPENROUTER_API_KEY environment variable.")
+            raise ValueError("GROQ_API_KEY is required.")
 
         # 0. Retrieve Knowledge
         knowledge = retrieve_relevant_knowledge(prompt, max_sections=6)
