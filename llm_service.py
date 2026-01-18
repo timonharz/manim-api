@@ -1,6 +1,6 @@
 import os
 from typing import Tuple
-from groq import Groq
+import requests
 from dotenv import load_dotenv
 
 from manim_knowledge_base import retrieve_relevant_knowledge
@@ -17,23 +17,38 @@ class LLMService:
     """
     
     def __init__(self):
-        self.default_api_key = os.getenv("GROQ_API_KEY")
+        self.default_api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("GROQ_API_KEY")
+        self.model = "openai/gpt-oss-120b"  # GPT-oss-120b for reliable code generation
+        self.base_url = "https://openrouter.ai/api/v1/chat/completions"
 
-    def _call_llm(self, messages: list, api_key: str) -> str:
-        """Helper to call the Groq API."""
-        client = Groq(api_key=api_key)
+    def _call_llm(self, messages: list, api_key: str, max_tokens: int = 4096) -> str:
+        """Helper to call the OpenRouter API."""
         print(f"DEBUG: Calling LLM with system prompt: {messages[0]['content'][:50]}...")
-        completion = client.chat.completions.create(
-            messages=messages,
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            max_completion_tokens=4096 
-        )
-        return completion.choices[0].message.content
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://manim-api.app",
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0.3,  # Lower temperature for more consistent code
+            "max_tokens": max_tokens,
+        }
+        
+        response = requests.post(self.base_url, headers=headers, json=payload, timeout=120)
+        response.raise_for_status()
+        
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
 
     def generate_storyboard(self, prompt: str, knowledge: str, api_key: str) -> str:
         """Step 1: Generate a visual storyboard."""
         system_prompt = f"""You are an expert director for educational math videos. Create a detailed storyboard.
+
+IMPORTANT: Output ONLY the storyboard. No explanations, no reasoning, no thinking out loud.
         
 ## RELEVANT KNOWLEDGE:
 {knowledge}
@@ -54,6 +69,8 @@ class LLMService:
     def generate_script(self, storyboard: str, api_key: str) -> str:
         """Step 2: Generate narration script from storyboard."""
         system_prompt = """You are an expert science communicator. Write a narration script matching the storyboard.
+
+IMPORTANT: Output ONLY the script. No explanations, no reasoning, no meta-commentary.
         
 ## OUTPUT FORMAT:
 [SCRIPT]
@@ -68,7 +85,9 @@ class LLMService:
 
     def generate_code(self, prompt: str, storyboard: str, script: str, knowledge: str, api_key: str) -> str:
         """Step 3: Generate Manim code from storyboard and script."""
-        system_prompt = f"""You are an expert Manim animation developer. Generate Python code using `manimlib` (ManimGL).
+        system_prompt = f"""You are an expert ManimGL animation developer. Generate Python code using `manimlib` (ManimGL by 3Blue1Brown).
+
+IMPORTANT: Output ONLY the code block. No explanations, no thinking, no comments before or after the code.
 
 ## CONTEXT:
 STORYBOARD:
@@ -82,34 +101,34 @@ SCRIPT:
 
 ## OUTPUT FORMAT:
 [CODE]
-(Python code only)
+(Python code only - no explanations)
 [/CODE]
 
 ## CRITICAL RULES (VIOLATION = SYSTEM CRASH):
 1. Use ONLY `from manimlib import *` as the FIRST import line.
-2. NEVER use `import manim` or `from manim import ...`.
+2. NEVER use `import manim` or `from manim import ...` - this is ManimGL, NOT community manim!
 3. Create a SINGLE `Scene` class named `GeneratedScene` containing the ENTIRE animation.
 4. DO NOT create multiple Scene classes. Combine all storyboard parts into one `construct` method.
 5. Include `self.add_sound("narration.mp3")` at the start of `construct`.
 6. Use `self.wait()` to sync with the script timing.
 7. PREFER `Text("String")` over `Tex(r"\\text{{String}}")`.
 8. Use `self.frame.set_euler_angles()` for 3D camera.
-9. Use `ShowCreation` (not Create).
-10. For MATH formulas (fractions, limits, integrals, etc.), use `MathTex(r"...")`. For plain TEXT, use `Text("...")` or `Tex(r"$...$")`.
+9. Use `ShowCreation` (not Create) for drawing animations.
+10. For MATH formulas use `Tex(r"...")`. For plain TEXT use `Text("...")` with font parameter.
+
+## ManimGL-SPECIFIC SYNTAX (NOT community manim):
+- Axes: `Axes(x_range=(-3,3,1), y_range=(-2,2,1), width=10, height=6)` - NO `tips` parameter!
+- NumberPlane: `NumberPlane(x_range=(-8,8), y_range=(-5,5))` - NO `axis_config` with `tip_shape`!
+- Use `axis_config={{"include_tip": True}}` if you need arrow tips on axes.
+- Graph: `axes.get_graph(lambda x: x**2, color=YELLOW)`
+- Point on graph: `axes.c2p(x, y)` or `axes.i2gp(x, graph)`
 """
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Generate Manim code for: {prompt}"}
         ]
-        client = Groq(api_key=api_key)
         # Use larger token limit for code
-        completion = client.chat.completions.create(
-            messages=messages,
-            model="llama-3.3-70b-versatile",
-            temperature=0.5,  # Lower temperature for more coherent code
-            max_completion_tokens=8192
-        )
-        return completion.choices[0].message.content
+        return self._call_llm(messages, api_key, max_tokens=8192)
     
     def _is_code_scrambled(self, code: str) -> bool:
         """
@@ -248,6 +267,14 @@ SCRIPT:
         # 5. LaTeX Sanitization
         if r"\text{" in code:
             code = re.sub(r'\\text\{([^}]+)\}', r'\\mathrm{\1}', code)
+        
+        # 6. Fix invalid Axes parameters (ManimGL vs Community Manim)
+        # Remove tips=True/False parameter which doesn't exist in ManimGL
+        code = re.sub(r',\s*tips\s*=\s*(True|False)', '', code)
+        # Remove tip_shape parameter
+        code = re.sub(r',\s*["\']?tip_shape["\']?\s*:\s*[^,}]+', '', code)
+        # Remove include_numbers parameter (use add_coordinate_labels() instead)
+        code = re.sub(r',\s*include_numbers\s*=\s*(True|False)', '', code)
             
         # 6. Ensure Class Structure (Wrap naked fragments)
         import re
@@ -272,7 +299,7 @@ class GeneratedScene(Scene):
             api_key = self.default_api_key
             
         if not api_key:
-            raise ValueError("Groq API key is required.")
+            raise ValueError("OpenRouter API key is required. Set OPENROUTER_API_KEY environment variable.")
 
         # 0. Retrieve Knowledge
         knowledge = retrieve_relevant_knowledge(prompt, max_sections=6)

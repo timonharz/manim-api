@@ -71,26 +71,31 @@ label.to_corner(UL)
 """,
 
     "coordinate_systems": """
-## Graphs and Coordinate Systems
+## Graphs and Coordinate Systems (ManimGL ONLY - NOT community manim!)
 
-### Axes (General 2D Plotting)
+### Axes (2D Plotting) - CORRECT ManimGL SYNTAX
+IMPORTANT: ManimGL Axes does NOT have `tips`, `tip_shape`, or `include_numbers` parameters!
 ```python
+# Basic Axes (CORRECT)
 axes = Axes(
-    x_range=(-3, 3, 1),
+    x_range=(-3, 3, 1),   # (min, max, step)
     y_range=(-2, 2, 0.5),
     width=10,
     height=6,
-    axis_config={"color": GREY}
+    axis_config={"include_tip": True}  # For arrow tips
 )
-axes.add_coordinate_labels()
+axes.add_coordinate_labels()  # Add numbers to axes
+
+# WRONG (will crash):
+# axes = Axes(x_range=..., tips=True)  # NO tips parameter!
+# axes = Axes(x_range=..., axis_config={"tip_shape": ...})  # NO tip_shape!
 ```
 
-### NumberPlane (Grid)
+### NumberPlane (Grid Background)
 ```python
 plane = NumberPlane(
     x_range=(-8, 8),
     y_range=(-5, 5),
-    # Optional styling
     background_line_style={
         "stroke_color": BLUE_D,
         "stroke_width": 1,
@@ -101,17 +106,24 @@ plane = NumberPlane(
 
 ### Graphing Functions
 ```python
-# Get graph object
+# Plot a function
 graph = axes.get_graph(lambda x: x**2, color=YELLOW)
 
-# Labels
+# Add label to graph
 label = axes.get_graph_label(graph, "f(x) = x^2")
 
-# Point conversions
-# Coordinates -> Position on screen
-point = axes.c2p(2, 4) 
-# Value -> Point on specific graph
-point_on_curve = axes.i2gp(2, graph)
+# Coordinate conversions
+point = axes.c2p(2, 4)           # coords -> screen position
+point_on_curve = axes.i2gp(2, graph)  # x value -> point on curve
+```
+
+### 3D Axes (ThreeDAxes)
+```python
+axes = ThreeDAxes(
+    x_range=(-6, 6, 1),
+    y_range=(-5, 5, 1),
+    z_range=(-4, 4, 1)
+)
 ```
 """,
 
