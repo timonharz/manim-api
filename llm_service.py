@@ -291,6 +291,8 @@ class GeneratedScene(Scene):
 {indented_code}
 """
         
+        return code
+        
     def generate_storyboard_and_script(self, prompt: str, api_key: str = None) -> Tuple[str, str]:
         """
         Phase 1: Generates the creative content (Storyboard + Script).
