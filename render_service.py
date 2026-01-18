@@ -209,43 +209,66 @@ class VideoGenerationService:
         max_attempts = 2
         last_error = None
         
-        for attempt in range(max_attempts):
+        # Phase 1: Creative Generation (Once)
+        try:
+            print("DEBUG: Generating Storyboard and Script...")
+            storyboard, script = self.llm.generate_storyboard_and_script(prompt, api_key=api_key)
+            print("DEBUG: Storyboard and Script generated.")
+            
+            # Phase 2: TTS (Once)
             temp_audio_path = None
-            try:
-                eff_prompt = prompt
-                if attempt > 0 and last_error:
-                    eff_prompt = f"{prompt}\n\nFIX THIS ERROR: {last_error}. Strictly use manimlib."
-                
-                print("DEBUG: Calling LLM...")
-                code, script = self.llm.generate_manim_content(eff_prompt, api_key=api_key)
-                print("DEBUG: LLM returned.")
-                
-                # Audio path
-                temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
-                os.close(temp_fd)
-                temp_audio_path = Path(temp_path_str)
-                print("DEBUG: Generating TTS...")
-                self.tts.generate_audio(script, temp_audio_path)
-                print("DEBUG: TTS generated.")
-                
-                # Render
-                assets = {"narration.mp3": temp_audio_path.read_bytes()}
-                print("DEBUG: Calling render_code...")
-                result = render_code(code, quality=quality, format=format, assets=assets)
-                print(f"DEBUG: render_code returned. Success: {result.success}")
-                if not result.success:
-                    print(f"DEBUG: render_code failed with error: {result.error}")
-                
-                if result.success:
-                    return result
-                
-                last_error = result.error
-                result.cleanup()
+            assets = {}
+            
+            # Create TTS audio
+            temp_fd, temp_path_str = tempfile.mkstemp(suffix=".mp3")
+            os.close(temp_fd)
+            temp_audio_path = Path(temp_path_str)
+            
+            print("DEBUG: Generating TTS...")
+            self.tts.generate_audio(script, temp_audio_path)
+            print("DEBUG: TTS generated.")
+            
+            # Read assets
+            assets = {"narration.mp3": temp_audio_path.read_bytes()}
+            
+        except Exception as e:
+            # If creative phase fails, we can't proceed
+            if temp_audio_path and temp_audio_path.exists():
+                os.unlink(temp_audio_path)
+            return RenderResult(None, None, False, f"Creative generation failed: {str(e)}")
+
+        # Phase 3: Code & Render Loop
+        try:
+            for attempt in range(max_attempts):
+                try:
+                    eff_prompt = prompt
+                    if attempt > 0 and last_error:
+                        # On retry, we ask the LLM to fix the code based on the render error
+                        eff_prompt = f"{prompt}\n\nFIX THIS ERROR: {last_error}. Strictly use manimlib."
                     
-            except Exception as e:
-                last_error = str(e)
-            finally:
-                if temp_audio_path and temp_audio_path.exists():
-                    os.unlink(temp_audio_path)
-        
-        return RenderResult(None, None, False, f"Generation failed after {max_attempts} attempts: {last_error}")
+                    print(f"DEBUG: Generating Code (Attempt {attempt+1})...")
+                    code = self.llm.generate_code_with_retry(eff_prompt, storyboard, script, api_key=api_key)
+                    print("DEBUG: Code generated.")
+                    
+                    # Render
+                    print("DEBUG: Calling render_code...")
+                    result = render_code(code, quality=quality, format=format, assets=assets)
+                    print(f"DEBUG: render_code returned. Success: {result.success}")
+                    
+                    if result.success:
+                        return result
+                    
+                    last_error = result.error
+                    result.cleanup()
+                    print(f"DEBUG: Render failed with: {last_error}")
+                        
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"DEBUG: Loop exception: {last_error}")
+            
+            return RenderResult(None, None, False, f"Generation failed after {max_attempts} attempts: {last_error}")
+            
+        finally:
+            # Cleanup TTS file
+            if temp_audio_path and temp_audio_path.exists():
+                os.unlink(temp_audio_path)

@@ -18,7 +18,7 @@ class LLMService:
     
     def __init__(self):
         self.default_api_key = os.getenv("GROQ_API_KEY")
-        self.model = "openai/gpt-oss-120b"
+        self.model = "moonshotai/kimi-k2-instruct-0905"
 
     def _call_llm(self, messages: list, api_key: str, max_tokens: int = 4096) -> str:
         """Helper to call the Groq API."""
@@ -30,6 +30,7 @@ class LLMService:
             model=self.model,
             temperature=0.3,  # Lower temperature for more consistent code
             max_completion_tokens=max_tokens,
+            reasoning_effort="high",
         )
         return completion.choices[0].message.content
 
@@ -269,7 +270,16 @@ SCRIPT:
         import re
         if not re.search(r"class\s+\w+\(Scene\):", code):
             # No scene class found, wrap it
-            indented_code = "\n".join(["    " + line for line in code.split("\n")])
+            lines = code.split("\n")
+            # Filter out empty lines to check if we have real content
+            has_content = any(line.strip() and not line.strip().startswith("#") for line in lines)
+            
+            indented_code = "\n".join(["    " + line for line in lines])
+            
+            # If no real content, add pass to avoid IndentationError
+            if not has_content:
+                indented_code += "\n        pass"
+                
             code = f"""
 from manimlib import *
 
@@ -278,15 +288,13 @@ class GeneratedScene(Scene):
 {indented_code}
 """
         
-        return code
-
-    def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
+    def generate_storyboard_and_script(self, prompt: str, api_key: str = None) -> Tuple[str, str]:
         """
-        Orchestrates the 3-step generation pipeline with validation and retry.
+        Phase 1: Generates the creative content (Storyboard + Script).
+        This is separated so it doesn't need to be re-run if code generation fails.
         """
         if not api_key:
             api_key = self.default_api_key
-            
         if not api_key:
             raise ValueError("GROQ_API_KEY is required.")
 
@@ -304,15 +312,27 @@ class GeneratedScene(Scene):
         
         # Extract script content
         import re
-        import ast
         script_match = re.search(r"\[\s*SCRIPT\s*\](.*?)\[\s*/SCRIPT\s*\]", script_resp, re.DOTALL | re.IGNORECASE)
         script = script_match.group(1).strip() if script_match else script_resp
         print(f"DEBUG: Script generated (len={len(script)})")
+        
+        return storyboard_resp, script
+
+    def generate_code_with_retry(self, prompt: str, storyboard: str, script: str, api_key: str = None) -> str:
+        """
+        Phase 2: Generates Manim code with internal validation and retry loop.
+        """
+        if not api_key:
+            api_key = self.default_api_key
+        if not api_key:
+            raise ValueError("GROQ_API_KEY is required.")
+            
+        import ast
 
         # 3. Code Generation with Retry Loop
         print("DEBUG: Generating Code...")
         # RE-RETRIEVE knowledge using the Storyboard
-        code_knowledge = retrieve_relevant_knowledge(storyboard_resp + "\n" + prompt, max_sections=8)
+        code_knowledge = retrieve_relevant_knowledge(storyboard + "\n" + prompt, max_sections=8)
         print(f"DEBUG: Retrieved code context: {len(code_knowledge)} chars")
         
         max_code_attempts = 3
@@ -334,7 +354,7 @@ Fix the syntax issues and generate working code.
 
 Original request: {prompt}"""
                 
-                code_resp = self.generate_code(effective_prompt, storyboard_resp, script, code_knowledge, api_key)
+                code_resp = self.generate_code(effective_prompt, storyboard, script, code_knowledge, api_key)
                 print(f"DEBUG: Raw LLM Code Response (first 500 chars):\n{code_resp[:500]}...")
                 
                 # --- Extraction & Processing ---
@@ -359,7 +379,7 @@ Original request: {prompt}"""
                 print(f"DEBUG: Code passed AST validation on attempt {attempt + 1}")
                 
                 # Success - break out of retry loop
-                break
+                return code.strip()
                 
             except (SyntaxError, ValueError) as e:
                 last_code_error = str(e)
@@ -372,8 +392,13 @@ Original request: {prompt}"""
                 # Continue to next attempt
                 continue
         
-        if code is None:
-            raise ValueError("Code generation failed - no valid code produced")
-            
-        return code.strip(), script
+        raise ValueError("Code generation failed - no valid code produced")
+    def generate_manim_content(self, prompt: str, api_key: str) -> Tuple[str, str]:
+        """
+        Orchestrates the 3-step generation pipeline with validation and retry.
+        Compatible wrapper around the new granular methods.
+        """
+        storyboard, script = self.generate_storyboard_and_script(prompt, api_key)
+        code = self.generate_code_with_retry(prompt, storyboard, script, api_key)
+        return code, script
 

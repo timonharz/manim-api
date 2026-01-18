@@ -11,7 +11,7 @@ public struct ManimClientConfig {
     public init(
         baseURL: URL = URL(string: "https://manim-api-production.up.railway.app")!,
         apiKey: String? = nil,
-        timeoutInterval: TimeInterval = 600  // 10 minutes for complex video generation
+        timeoutInterval: TimeInterval = 1200  // 20 minutes for complex video generation
     ) {
         self.baseURL = baseURL
         self.apiKey = apiKey
