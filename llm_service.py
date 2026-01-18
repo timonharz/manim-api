@@ -31,7 +31,11 @@ class LLMService:
             temperature=0.3,  # Lower temperature for more consistent code
             max_completion_tokens=max_tokens,
         )
-        return completion.choices[0].message.content
+        content = completion.choices[0].message.content
+        if content is None:
+            print("DEBUG: LLM returned None content!")
+            return ""
+        return content
 
     def generate_storyboard(self, prompt: str, knowledge: str, api_key: str) -> str:
         """Step 1: Generate a visual storyboard."""
