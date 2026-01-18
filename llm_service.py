@@ -30,7 +30,6 @@ class LLMService:
             model=self.model,
             temperature=0.3,  # Lower temperature for more consistent code
             max_completion_tokens=max_tokens,
-            reasoning_effort="high",
         )
         return completion.choices[0].message.content
 
